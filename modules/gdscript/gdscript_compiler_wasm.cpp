@@ -1,5 +1,5 @@
 /**************************************************************************/
-/*  gdscript_compiler.cpp                                                 */
+/*  gdscript_compiler_wasm.cpp                                            */
 /**************************************************************************/
 /*                         This file is part of:                          */
 /*                             GODOT ENGINE                               */
@@ -31,7 +31,7 @@
 #include "gdscript_compiler_wasm.h"
 
 GDScriptWasmFunction *GDScriptWasmCompiler::_compile_function(Error &r_error, GDScript *p_script, const GDScriptParser::ClassNode *p_class, const GDScriptParser::FunctionNode *p_func, bool p_for_ready, bool p_for_lambda) {
-    return nullptr;
+	return nullptr;
 }
 
 Error GDScriptWasmCompiler::_compile_class(GDScript *p_script, const GDScriptParser::ClassNode *p_class, bool p_keep_state) {
@@ -62,15 +62,15 @@ Error GDScriptWasmCompiler::_compile_class(GDScript *p_script, const GDScriptPar
 			}
 		}
 	}
-    return OK;
+	return OK;
 }
 
 Error GDScriptWasmCompiler::compile(const GDScriptParser *p_parser, GDScript *p_script, bool p_keep_state) {
-    Error err = OK;
-    const GDScriptParser *parser = p_parser;
-    const GDScriptParser::ClassNode *root = parser->get_tree();
-    _compile_class(p_script, root, p_keep_state);
-    return err;
+	Error err = OK;
+	const GDScriptParser *parser = p_parser;
+	const GDScriptParser::ClassNode *root = parser->get_tree();
+	_compile_class(p_script, root, p_keep_state);
+	return err;
 }
 
 GDScriptWasmCompiler::GDScriptWasmCompiler() {

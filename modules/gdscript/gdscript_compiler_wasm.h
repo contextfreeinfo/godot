@@ -1,5 +1,5 @@
 /**************************************************************************/
-/*  gdscript_compiler.h                                                   */
+/*  gdscript_compiler_wasm.h                                              */
 /**************************************************************************/
 /*                         This file is part of:                          */
 /*                             GODOT ENGINE                               */
@@ -38,7 +38,7 @@
 using GDScriptWasmFunction = void;
 
 class GDScriptWasmCompiler {
-    wasmblr::CodeGenerator cg;
+	wasmblr::CodeGenerator cg;
 
 	GDScriptWasmFunction *_compile_function(Error &r_error, GDScript *p_script, const GDScriptParser::ClassNode *p_class, const GDScriptParser::FunctionNode *p_func, bool p_for_ready = false, bool p_for_lambda = false);
 	Error _compile_class(GDScript *p_script, const GDScriptParser::ClassNode *p_class, bool p_keep_state);
