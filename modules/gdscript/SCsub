@@ -6,6 +6,7 @@ Import("env_modules")
 
 env_gdscript = env_modules.Clone()
 
+env_gdscript.Prepend(CPPEXTPATH=["#thirdparty/wasmblr/"])
 env_gdscript.add_source_files(env.modules_sources, "*.cpp")
 
 if env.editor_build:

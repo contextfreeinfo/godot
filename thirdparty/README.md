@@ -1078,6 +1078,12 @@ Patches:
 - `0003-VMA-add-vmaCalculateLazilyAllocatedBytes.patch` (GH-99257)
 
 
+## wasmblr
+
+- Upstream: https://github.com/bwasti/wasmblr
+- Version: a88c98be91a7ea706c74b991754fe4ccd9c9beb8 + local modifications
+- License: MIT
+
 
 ## wayland
 

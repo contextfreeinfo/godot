@@ -34,10 +34,12 @@
 #include "gdscript_codegen.h"
 #include "gdscript_function.h"
 #include "gdscript_parser.h"
+#include "gdscript_compiler_wasm.h"
 
 #include "core/templates/hash_set.h"
 
 class GDScriptCompiler {
+	GDScriptWasmCompiler wasm_compiler;
 	const GDScriptParser *parser = nullptr;
 	HashSet<GDScript *> parsed_classes;
 	HashSet<GDScript *> parsing_classes;
