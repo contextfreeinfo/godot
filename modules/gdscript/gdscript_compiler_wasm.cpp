@@ -36,28 +36,38 @@
 GDScriptWasmFunction *GDScriptWasmCompiler::_compile_function(Error &r_error, GDScript *p_script, const GDScriptParser::ClassNode *p_class, const GDScriptParser::FunctionNode *p_func, bool p_for_ready, bool p_for_lambda) {
 	String name = p_func->identifier->name;
 	CharString utf8 = name.utf8();
-	if (dump_wasm) {
-		print_line("compiling function");
-		print_line(name);
-		for (int i = 0; i < p_func->parameters.size(); i++) {
-			print_line("parameter");
-			const GDScriptParser::ParameterNode *parameter = p_func->parameters[i];
-			print_line(parameter->identifier->name);
-			print_line(parameter->datatype.to_string());
-			if (parameter->initializer) {
-				print_line(parameter->initializer->reduced_value);
-			}
-			print_line("/parameter");
+	// if (dump_wasm) {
+	// 	print_line("compiling function");
+	// 	print_line(name);
+	// 	for (int i = 0; i < p_func->parameters.size(); i++) {
+	// 		print_line("parameter");
+	// 		const GDScriptParser::ParameterNode *parameter = p_func->parameters[i];
+	// 		print_line(parameter->identifier->name);
+	// 		print_line(parameter->datatype.to_string());
+	// 		if (parameter->initializer) {
+	// 			print_line(parameter->initializer->reduced_value);
+	// 		}
+	// 		print_line("/parameter");
+	// 	}
+	// 	print_line("/compiling function");
+	// }
+	// Make overloads for optional params.
+	for (int i = p_func->parameters.size(); i >= 0; i--) {
+		GDScriptParser::ExpressionNode *initializer = i ? p_func->parameters[i - 1]->initializer : nullptr;
+		uint32_t fun = cg.function({ cg.i32 }, {}, [&]() {
+			// TODO Fill function content.
+		});
+		// -1 to exclude null char.
+		std::string utf8_string{ utf8.ptr(), static_cast<size_t>(utf8.size()) - 1 };
+		// TODO Repeat for optional params. Name /0, /1, ...
+		utf8_string += '/';
+		utf8_string.append(std::to_string(i));
+		cg.export_(fun, utf8_string);
+		if (!initializer) {
+			// That was the last.
+			break;
 		}
-		print_line("/compiling function");
 	}
-	// p_func->parameters
-	uint32_t fun = cg.function({ cg.i32 }, {}, [&]() {
-		//
-	});
-	// -1 to exclude null char.
-	std::string utf8_string{ utf8.ptr(), static_cast<size_t>(utf8.size()) - 1 };
-	cg.export_(fun, utf8_string);
 	return nullptr;
 }
 
