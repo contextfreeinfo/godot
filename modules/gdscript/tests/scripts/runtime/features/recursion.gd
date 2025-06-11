@@ -17,3 +17,5 @@ func test():
 
 	# Largest prime number below 10000.
 	print(is_prime(9973))
+
+const DUMP_WASM := true

@@ -38,6 +38,7 @@
 using GDScriptWasmFunction = void;
 
 class GDScriptWasmCompiler {
+	bool dump_wasm = false;
 	wasmblr::CodeGenerator cg;
 
 	GDScriptWasmFunction *_compile_function(Error &r_error, GDScript *p_script, const GDScriptParser::ClassNode *p_class, const GDScriptParser::FunctionNode *p_func, bool p_for_ready = false, bool p_for_lambda = false);
