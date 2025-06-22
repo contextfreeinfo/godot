@@ -516,10 +516,10 @@ inline F32::operator uint8_t() {
 
 inline void F32::const_(float f) {
   cg.emit(0x43);
-  uint8_t r[4];
-  memcpy(&r, &f, sizeof(float));
-  for (auto i = 0; i < 4; ++i) {
-    cg.emit(r[i]);
+  uint32_t bits;
+  memcpy(&bits, &f, sizeof(float));
+  for (int i = 0; i < sizeof(float); ++i) {
+    cg.emit((bits >> (8 * i)) & 0xff);
   }
   cg.push(cg.f32);
 }
@@ -530,10 +530,10 @@ inline F64::operator uint8_t() {
 
 inline void F64::const_(double f) {
   cg.emit(0x44);
-  uint8_t r[8];
-  memcpy(&r, &f, sizeof(double));
-  for (auto i = 0; i < 8; ++i) {
-    cg.emit(r[i]);
+  uint64_t bits;
+  memcpy(&bits, &f, sizeof(double));
+  for (int i = 0; i < sizeof(double); ++i) {
+    cg.emit((bits >> (8 * i)) & 0xff);
   }
   cg.push(cg.f64);
 }

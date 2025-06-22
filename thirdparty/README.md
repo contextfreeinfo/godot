@@ -1081,7 +1081,7 @@ Patches:
 ## wasmblr
 
 - Upstream: https://github.com/contextfreeinfo/wasmblr
-- Version: 7de4d3e82fdce57cb4656de4e848c0daf4c48b72
+- Version: 16b5712e6bcd3c7955b527c7da9ad983571d14cb
 - License: MIT
 
 
