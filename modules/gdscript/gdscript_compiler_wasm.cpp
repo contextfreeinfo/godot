@@ -33,6 +33,49 @@
 
 #include <string>
 
+/*
+2025-06-11T15:02:52Z tom@hierba:~/projects/godot
+$ time scons platform=linuxbsd target=editor tests=yes -j8
+scons: Reading SConscript files ...
+Building for platform "linuxbsd", architecture "x86_64", target "editor".
+scons: done reading SConscript files.
+scons: Building targets ...
+[ 23%] Compiling modules/gdscript/gdscript_compiler_wasm.cpp ...
+[ 99%] Linking Static Library bin/obj/modules/libmodule_gdscript.linuxbsd.editor.x86_64.a ...
+Ranlib Library bin/obj/modules/libmodule_gdscript.linuxbsd.editor.x86_64.a ...
+[ 99%] Linking Program bin/godot.linuxbsd.editor.x86_64 ...
+[100%] scons: done building targets.
+INFO: Time elapsed: 00:00:19.72
+real	0m21.933s
+user	0m22.237s
+sys	0m1.515s
+2025-06-11T15:09:16Z tom@hierba:~/projects/godot
+$ time ./bin/godot.linuxbsd.editor.x86_64 --test --test-suite="[Modules][GDScript]"
+[doctest] doctest version is "2.4.11"
+[doctest] run with "--help" for options
+===============================================================================
+[doctest] test cases:   1 |   1 passed | 0 failed | 1239 skipped
+[doctest] assertions: 598 | 598 passed | 0 failed |
+[doctest] Status: SUCCESS!
+real	0m0.699s
+user	0m0.613s
+sys	0m0.086s
+2025-06-11T15:09:18Z tom@hierba:~/projects/godot
+2025-06-11T15:03:16Z tom@hierba:/tmp/tom-godot
+$ wasm2wat --generate-names --fold-exprs recursion.gd.wasm
+(module
+  (type $t0 (func (param i32)))
+  (type $t1 (func (param i32)))
+  (type $t2 (func (param i32)))
+  (func $is_prime/2 (type $t0) (param $p0 i32))
+  (func $is_prime/1 (type $t1) (param $p0 i32))
+  (func $test/0 (type $t2) (param $p0 i32))
+  (export "test/0" (func $test/0))
+  (export "is_prime/1" (func $is_prime/1))
+  (export "is_prime/2" (func $is_prime/2)))
+2025-06-11T15:09:19Z tom@hierba:/tmp/tom-godot
+*/
+
 GDScriptWasmFunction *GDScriptWasmCompiler::_compile_function(Error &r_error, GDScript *p_script, const GDScriptParser::ClassNode *p_class, const GDScriptParser::FunctionNode *p_func, bool p_for_ready, bool p_for_lambda) {
 	String name = p_func->identifier->name;
 	CharString utf8 = name.utf8();
@@ -53,8 +96,28 @@ GDScriptWasmFunction *GDScriptWasmCompiler::_compile_function(Error &r_error, GD
 	// }
 	// Make overloads for optional params.
 	for (int i = p_func->parameters.size(); i >= 0; i--) {
+		// TODO Also need a Variant-friendly wrapper for each function?
+		// TODO Or can we store metadata to know how to use each function without that?
 		GDScriptParser::ExpressionNode *initializer = i ? p_func->parameters[i - 1]->initializer : nullptr;
-		uint32_t fun = cg.function({ cg.i32 }, {}, [&]() {
+		std::vector<uint8_t> wasm_params;
+		for (int j = 0; j < i; j += 1) {
+			GDScriptParser::ParameterNode *parameter = p_func->parameters[j];
+			switch (parameter->datatype.builtin_type) {
+				case Variant::FLOAT: {
+					// TODO Need f64 for godot needs.
+					wasm_params.push_back(cg.f32);
+				} break;
+				case Variant::INT: {
+					// TODO Need i64 for godot needs.
+					wasm_params.push_back(cg.i32);
+				} break;
+				default: {
+					// Presumably a handle of some sort.
+					wasm_params.push_back(cg.i32);
+				} break;
+			}
+		}
+		uint32_t fun = cg.function(wasm_params, {}, [&]() {
 			// TODO Fill function content.
 		});
 		// -1 to exclude null char.
