@@ -1080,8 +1080,8 @@ Patches:
 
 ## wasmblr
 
-- Upstream: https://github.com/bwasti/wasmblr
-- Version: a88c98be91a7ea706c74b991754fe4ccd9c9beb8 + local modifications
+- Upstream: https://github.com/contextfreeinfo/wasmblr
+- Version: 7de4d3e82fdce57cb4656de4e848c0daf4c48b72
 - License: MIT
 
 

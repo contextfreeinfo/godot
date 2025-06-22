@@ -104,15 +104,13 @@ GDScriptWasmFunction *GDScriptWasmCompiler::_compile_function(Error &r_error, GD
 			GDScriptParser::ParameterNode *parameter = p_func->parameters[j];
 			switch (parameter->datatype.builtin_type) {
 				case Variant::FLOAT: {
-					// TODO Need f64 for godot needs.
-					wasm_params.push_back(cg.f32);
+					wasm_params.push_back(cg.f64);
 				} break;
 				case Variant::INT: {
-					// TODO Need i64 for godot needs.
-					wasm_params.push_back(cg.i32);
+					wasm_params.push_back(cg.i64);
 				} break;
 				default: {
-					// Presumably a handle of some sort.
+					// Presumably a bool, char, or else handle of some sort.
 					wasm_params.push_back(cg.i32);
 				} break;
 			}
