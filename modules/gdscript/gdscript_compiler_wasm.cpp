@@ -76,7 +76,9 @@ $ wasm2wat --generate-names --fold-exprs recursion.gd.wasm
 2025-06-11T15:09:19Z tom@hierba:/tmp/tom-godot
 */
 
-GDScriptWasmFunction *GDScriptWasmCompiler::_compile_function(Error &r_error, GDScript *p_script, const GDScriptParser::ClassNode *p_class, const GDScriptParser::FunctionNode *p_func, bool p_for_ready, bool p_for_lambda) {
+namespace {
+
+GDScriptWasmFunction *compile_function(GDScriptWasmCompilerSelf &self, Error &r_error, GDScript *p_script, const GDScriptParser::ClassNode *p_class, const GDScriptParser::FunctionNode *p_func, bool p_for_ready = false, bool p_for_lambda = false) {
 	String name = p_func->identifier->name;
 	CharString utf8 = name.utf8();
 	// if (dump_wasm) {
@@ -95,6 +97,7 @@ GDScriptWasmFunction *GDScriptWasmCompiler::_compile_function(Error &r_error, GD
 	// 	print_line("/compiling function");
 	// }
 	// Make overloads for optional params.
+	bool first = true;
 	for (int i = p_func->parameters.size(); i >= 0; i--) {
 		// TODO Also need a Variant-friendly wrapper for each function?
 		// TODO Or can we store metadata to know how to use each function without that?
@@ -104,26 +107,33 @@ GDScriptWasmFunction *GDScriptWasmCompiler::_compile_function(Error &r_error, GD
 			GDScriptParser::ParameterNode *parameter = p_func->parameters[j];
 			switch (parameter->datatype.builtin_type) {
 				case Variant::FLOAT: {
-					wasm_params.push_back(cg.f64);
+					wasm_params.push_back(self.cg.f64);
 				} break;
 				case Variant::INT: {
-					wasm_params.push_back(cg.i64);
+					wasm_params.push_back(self.cg.i64);
 				} break;
 				default: {
 					// Presumably a bool, char, or else handle of some sort.
-					wasm_params.push_back(cg.i32);
+					wasm_params.push_back(self.cg.i32);
 				} break;
 			}
 		}
-		uint32_t fun = cg.function(wasm_params, {}, [&]() {
+		uint32_t fun = self.cg.function(wasm_params, {}, [&]() {
+			if (first) {
+				// TODO Full function.
+				// p_func->body
+			} else {
+				// TODO Call previous with default value.
+			}
 			// TODO Fill function content.
 		});
+		first = false;
 		// -1 to exclude null char.
 		std::string utf8_string{ utf8.ptr(), static_cast<size_t>(utf8.size()) - 1 };
 		// TODO Repeat for optional params. Name /0, /1, ...
 		utf8_string += '/';
 		utf8_string.append(std::to_string(i));
-		cg.export_(fun, utf8_string);
+		self.cg.export_(fun, utf8_string);
 		if (!initializer) {
 			// That was the last.
 			break;
@@ -132,7 +142,7 @@ GDScriptWasmFunction *GDScriptWasmCompiler::_compile_function(Error &r_error, GD
 	return nullptr;
 }
 
-Error GDScriptWasmCompiler::_compile_class(GDScript *p_script, const GDScriptParser::ClassNode *p_class, bool p_keep_state) {
+Error compile_class(GDScriptWasmCompilerSelf &self, GDScript *p_script, const GDScriptParser::ClassNode *p_class, bool p_keep_state) {
 	for (int i = 0; i < p_class->members.size(); i++) {
 		const GDScriptParser::ClassNode::Member &member = p_class->members[i];
 		if (member.type == member.CONSTANT) {
@@ -142,7 +152,7 @@ Error GDScriptWasmCompiler::_compile_class(GDScript *p_script, const GDScriptPar
 				// print_line(constant->datatype.to_string());
 				if (constant->initializer) {
 					// print_line(constant->initializer->reduced_value);
-					dump_wasm = constant->initializer->reduced_value && bool(constant->initializer->reduced_value);
+					self.dump_wasm = constant->initializer->reduced_value && bool(constant->initializer->reduced_value);
 				}
 				break;
 			}
@@ -153,7 +163,7 @@ Error GDScriptWasmCompiler::_compile_class(GDScript *p_script, const GDScriptPar
 		if (member.type == member.FUNCTION) {
 			const GDScriptParser::FunctionNode *function = member.function;
 			Error err = OK;
-			_compile_function(err, p_script, p_class, function);
+			compile_function(self, err, p_script, p_class, function);
 			if (err) {
 				return err;
 			}
@@ -178,11 +188,13 @@ Error GDScriptWasmCompiler::_compile_class(GDScript *p_script, const GDScriptPar
 	return OK;
 }
 
+} //namespace
+
 Error GDScriptWasmCompiler::compile(const GDScriptParser *p_parser, GDScript *p_script, bool p_keep_state) {
 	Error err = OK;
 	const GDScriptParser *parser = p_parser;
 	const GDScriptParser::ClassNode *root = parser->get_tree();
-	_compile_class(p_script, root, p_keep_state);
+	compile_class(self, p_script, root, p_keep_state);
 	// GDScriptParser::TreePrinter printer;
 	// printer.print_tree(*p_parser);
 	String tmp_dir = "/tmp/tom-godot";
@@ -190,7 +202,7 @@ Error GDScriptWasmCompiler::compile(const GDScriptParser *p_parser, GDScript *p_
 	tmp_file.append_ascii(".wasm");
 	DirAccess::make_dir_recursive_absolute(tmp_dir);
 	Ref<FileAccess> file = FileAccess::open(tmp_file, FileAccess::WRITE);
-	std::vector<uint8_t> wasm = cg.emit();
+	std::vector<uint8_t> wasm = self.cg.emit();
 	file->store_buffer(wasm.data(), wasm.size());
 	return err;
 }

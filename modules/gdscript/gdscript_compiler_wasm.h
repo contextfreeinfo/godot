@@ -37,12 +37,13 @@
 
 using GDScriptWasmFunction = void;
 
-class GDScriptWasmCompiler {
-	bool dump_wasm = false;
+struct GDScriptWasmCompilerSelf {
 	wasmblr::CodeGenerator cg;
+	bool dump_wasm = false;
+};
 
-	GDScriptWasmFunction *_compile_function(Error &r_error, GDScript *p_script, const GDScriptParser::ClassNode *p_class, const GDScriptParser::FunctionNode *p_func, bool p_for_ready = false, bool p_for_lambda = false);
-	Error _compile_class(GDScript *p_script, const GDScriptParser::ClassNode *p_class, bool p_keep_state);
+class GDScriptWasmCompiler {
+	GDScriptWasmCompilerSelf self;
 
 public:
 	Error compile(const GDScriptParser *p_parser, GDScript *p_script, bool p_keep_state = false);
