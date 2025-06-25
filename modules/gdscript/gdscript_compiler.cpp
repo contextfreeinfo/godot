@@ -3248,7 +3248,6 @@ void GDScriptCompiler::_get_function_ptr_replacements(HashMap<GDScriptFunction *
 }
 
 Error GDScriptCompiler::compile(const GDScriptParser *p_parser, GDScript *p_script, bool p_keep_state) {
-	wasm_compiler.compile(p_parser, p_script, p_keep_state);
 	err_line = -1;
 	err_column = -1;
 	error = "";
@@ -3289,6 +3288,8 @@ Error GDScriptCompiler::compile(const GDScriptParser *p_parser, GDScript *p_scri
 	if (err) {
 		_set_error(R"(Failed to compile depended scripts.)", nullptr);
 	}
+	// Do this last because some additional info is filled in above.
+	wasm_compiler.compile(p_parser, p_script, p_keep_state);
 	return err;
 }
 

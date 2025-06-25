@@ -78,24 +78,58 @@ $ wasm2wat --generate-names --fold-exprs recursion.gd.wasm
 
 namespace {
 
-GDScriptWasmFunction *compile_function(GDScriptWasmCompilerSelf &self, Error &r_error, GDScript *p_script, const GDScriptParser::ClassNode *p_class, const GDScriptParser::FunctionNode *p_func, bool p_for_ready = false, bool p_for_lambda = false) {
+uint8_t convert_type(GDScriptWasmCompilerSelf &self, Variant::Type p_type) {
+	switch (p_type) {
+		case Variant::FLOAT:
+			return self.cg.f64;
+		case Variant::INT:
+			return self.cg.i64;
+		default:
+			// Presumably a bool, char, or else handle of some sort.
+			return self.cg.i32;
+	}
+}
+
+void compile_expression(GDScriptWasmCompilerSelf &self, GDScriptParser::ExpressionNode *p_expression) {
+	switch (p_expression->type) {
+		case GDScriptParser::Node::LITERAL: {
+			const GDScriptParser::LiteralNode *literal = static_cast<const GDScriptParser::LiteralNode *>(p_expression);
+			// TODO literal->value
+		} break;
+		default: {
+			// TODO
+		} break;
+	}
+}
+
+void compile_block(GDScriptWasmCompilerSelf &self, GDScriptParser::SuiteNode *p_block) {
+	for (int i = 0; i < p_block->statements.size(); i++) {
+		const GDScriptParser::Node *statement = p_block->statements[i];
+		switch (statement->type) {
+			case GDScriptParser::Node::CALL: {
+				//
+			} break;
+			case GDScriptParser::Node::IF: {
+				//
+			} break;
+			case GDScriptParser::Node::RETURN: {
+				const GDScriptParser::ReturnNode *return_node = static_cast<const GDScriptParser::ReturnNode *>(statement);
+				compile_expression(self, return_node->return_value);
+				self.cg.return_();
+			} break;
+			default: {
+				// if (self.dump_wasm) {
+				// 	print_line("--- statement kind ---");
+				// 	print_line(statement->type);
+				// }
+			} break;
+		}
+	}
+}
+
+void compile_function(GDScriptWasmCompilerSelf &self, const GDScriptParser::FunctionNode *p_func) {
 	String name = p_func->identifier->name;
 	CharString utf8 = name.utf8();
-	// if (dump_wasm) {
-	// 	print_line("compiling function");
-	// 	print_line(name);
-	// 	for (int i = 0; i < p_func->parameters.size(); i++) {
-	// 		print_line("parameter");
-	// 		const GDScriptParser::ParameterNode *parameter = p_func->parameters[i];
-	// 		print_line(parameter->identifier->name);
-	// 		print_line(parameter->datatype.to_string());
-	// 		if (parameter->initializer) {
-	// 			print_line(parameter->initializer->reduced_value);
-	// 		}
-	// 		print_line("/parameter");
-	// 	}
-	// 	print_line("/compiling function");
-	// }
 	// Make overloads for optional params.
 	bool first = true;
 	for (int i = p_func->parameters.size(); i >= 0; i--) {
@@ -105,23 +139,17 @@ GDScriptWasmFunction *compile_function(GDScriptWasmCompilerSelf &self, Error &r_
 		std::vector<uint8_t> wasm_params;
 		for (int j = 0; j < i; j += 1) {
 			GDScriptParser::ParameterNode *parameter = p_func->parameters[j];
-			switch (parameter->datatype.builtin_type) {
-				case Variant::FLOAT: {
-					wasm_params.push_back(self.cg.f64);
-				} break;
-				case Variant::INT: {
-					wasm_params.push_back(self.cg.i64);
-				} break;
-				default: {
-					// Presumably a bool, char, or else handle of some sort.
-					wasm_params.push_back(self.cg.i32);
-				} break;
-			}
+			wasm_params.push_back(convert_type(self, parameter->datatype.builtin_type));
 		}
-		uint32_t fun = self.cg.function(wasm_params, {}, [&]() {
+		std::vector<uint8_t> wasm_return_type;
+		if (p_func->return_type) {
+			wasm_return_type.push_back(convert_type(self, p_func->return_type->datatype.builtin_type));
+		}
+		// Emit happens late, so capture by value anything that won't live until emit time.
+		uint32_t fun = self.cg.function(wasm_params, wasm_return_type, [&self, p_func, first]() {
 			if (first) {
-				// TODO Full function.
-				// p_func->body
+				// Full function.
+				compile_block(self, p_func->body);
 			} else {
 				// TODO Call previous with default value.
 			}
@@ -139,7 +167,6 @@ GDScriptWasmFunction *compile_function(GDScriptWasmCompilerSelf &self, Error &r_
 			break;
 		}
 	}
-	return nullptr;
 }
 
 Error compile_class(GDScriptWasmCompilerSelf &self, GDScript *p_script, const GDScriptParser::ClassNode *p_class, bool p_keep_state) {
@@ -163,7 +190,7 @@ Error compile_class(GDScriptWasmCompilerSelf &self, GDScript *p_script, const GD
 		if (member.type == member.FUNCTION) {
 			const GDScriptParser::FunctionNode *function = member.function;
 			Error err = OK;
-			compile_function(self, err, p_script, p_class, function);
+			compile_function(self, function);
 			if (err) {
 				return err;
 			}

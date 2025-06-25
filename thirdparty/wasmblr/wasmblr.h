@@ -337,6 +337,7 @@ struct CodeGenerator {
   void br_if(uint32_t labelidx);
   void end();
   void call(uint32_t funcidx);
+  void return_();
 
   void export_(uint32_t fn_idx, std::string name);
 
@@ -950,6 +951,9 @@ inline void CodeGenerator::call(uint32_t fn_idx) {
   assert(fn_idx < functions_.size() && "function index does not exist");
   emit(0x10);
   emit(encode_unsigned(fn_idx));
+}
+inline void CodeGenerator::return_() {
+  emit(0x0f);
 }
 
 inline void CodeGenerator::export_(uint32_t fn, std::string name) {
