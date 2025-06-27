@@ -78,6 +78,8 @@ $ wasm2wat --generate-names --fold-exprs recursion.gd.wasm
 
 namespace {
 
+void compile_block(GDScriptWasmCompilerSelf &self, GDScriptParser::SuiteNode *p_block);
+
 uint8_t convert_type(GDScriptWasmCompilerSelf &self, Variant::Type p_type) {
 	switch (p_type) {
 		case Variant::FLOAT:
@@ -90,7 +92,7 @@ uint8_t convert_type(GDScriptWasmCompilerSelf &self, Variant::Type p_type) {
 	}
 }
 
-void compile_expression(GDScriptWasmCompilerSelf &self, GDScriptParser::ExpressionNode *p_expression) {
+void compile_expression(GDScriptWasmCompilerSelf &self, const GDScriptParser::ExpressionNode *p_expression) {
 	switch (p_expression->type) {
 		case GDScriptParser::Node::LITERAL: {
 			const GDScriptParser::LiteralNode *literal = static_cast<const GDScriptParser::LiteralNode *>(p_expression);
@@ -102,6 +104,17 @@ void compile_expression(GDScriptWasmCompilerSelf &self, GDScriptParser::Expressi
 	}
 }
 
+void compile_if(GDScriptWasmCompilerSelf &self, const GDScriptParser::IfNode *p_if) {
+	compile_expression(self, p_if->condition);
+	self.cg.if_(self.cg.void_);
+	compile_block(self, p_if->true_block);
+	if (p_if->false_block) {
+		self.cg.else_();
+		compile_block(self, p_if->false_block);
+	}
+	self.cg.end();
+}
+
 void compile_block(GDScriptWasmCompilerSelf &self, GDScriptParser::SuiteNode *p_block) {
 	for (int i = 0; i < p_block->statements.size(); i++) {
 		const GDScriptParser::Node *statement = p_block->statements[i];
@@ -110,7 +123,7 @@ void compile_block(GDScriptWasmCompilerSelf &self, GDScriptParser::SuiteNode *p_
 				//
 			} break;
 			case GDScriptParser::Node::IF: {
-				//
+				compile_if(self, static_cast<const GDScriptParser::IfNode *>(statement));
 			} break;
 			case GDScriptParser::Node::RETURN: {
 				const GDScriptParser::ReturnNode *return_node = static_cast<const GDScriptParser::ReturnNode *>(statement);
@@ -137,6 +150,10 @@ void compile_function(GDScriptWasmCompilerSelf &self, const GDScriptParser::Func
 		// TODO Or can we store metadata to know how to use each function without that?
 		GDScriptParser::ExpressionNode *initializer = i ? p_func->parameters[i - 1]->initializer : nullptr;
 		std::vector<uint8_t> wasm_params;
+		if (!p_func->is_static) {
+			// Self parameter.
+			wasm_params.push_back(self.cg.i32);
+		}
 		for (int j = 0; j < i; j += 1) {
 			GDScriptParser::ParameterNode *parameter = p_func->parameters[j];
 			wasm_params.push_back(convert_type(self, parameter->datatype.builtin_type));
