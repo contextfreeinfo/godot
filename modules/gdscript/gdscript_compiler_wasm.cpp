@@ -79,6 +79,7 @@ $ wasm2wat --generate-names --fold-exprs recursion.gd.wasm
 namespace {
 
 void compile_block(GDScriptWasmCompilerSelf &self, GDScriptParser::SuiteNode *p_block);
+void compile_expression(GDScriptWasmCompilerSelf &self, const GDScriptParser::ExpressionNode *p_expression);
 
 uint8_t convert_type(GDScriptWasmCompilerSelf &self, Variant::Type p_type) {
 	switch (p_type) {
@@ -92,25 +93,48 @@ uint8_t convert_type(GDScriptWasmCompilerSelf &self, Variant::Type p_type) {
 	}
 }
 
+void compile_call(GDScriptWasmCompilerSelf &self, const GDScriptParser::CallNode *p_call) {
+	compile_expression(self, p_call->callee);
+}
+
+void compile_identifier(GDScriptWasmCompilerSelf &self, const GDScriptParser::IdentifierNode *p_identifier) {
+	print_line("=== compile_identifier");
+	print_line(p_identifier->name);
+	print_line(p_identifier->source);
+	print_line("=== /compile_identifier");
+	switch (p_identifier->source) {
+		case GDScriptParser::IdentifierNode::MEMBER_FUNCTION: {
+			// TODO
+		} break;
+		default: {
+			// print_line("=== compile_identifier");
+			// print_line(p_identifier->name);
+			// print_line(p_identifier->source);
+			// print_line("=== /compile_identifier");
+		} break;
+	}
+}
+
 void compile_expression(GDScriptWasmCompilerSelf &self, const GDScriptParser::ExpressionNode *p_expression) {
-	// print_line("=== compile_expression");
-	// print_line(p_expression->type);
-	// print_line("=== /compile_expression");
 	switch (p_expression->type) {
 		case GDScriptParser::Node::BINARY_OPERATOR: {
 			const GDScriptParser::BinaryOpNode *op = static_cast<const GDScriptParser::BinaryOpNode *>(p_expression);
 			// op->left_operand
 		} break;
 		case GDScriptParser::Node::CALL: {
-			const GDScriptParser::CallNode *call = static_cast<const GDScriptParser::CallNode *>(p_expression);
-			// call->callee
+			compile_call(self, static_cast<const GDScriptParser::CallNode *>(p_expression));
+		} break;
+		case GDScriptParser::Node::IDENTIFIER: {
+			compile_identifier(self, static_cast<const GDScriptParser::IdentifierNode *>(p_expression));
 		} break;
 		case GDScriptParser::Node::LITERAL: {
 			const GDScriptParser::LiteralNode *literal = static_cast<const GDScriptParser::LiteralNode *>(p_expression);
 			// TODO literal->value
 		} break;
 		default: {
-			// TODO
+			print_line("=== compile_expression");
+			print_line(p_expression->type);
+			print_line("=== /compile_expression");
 		} break;
 	}
 }
