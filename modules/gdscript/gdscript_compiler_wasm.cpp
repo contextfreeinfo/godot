@@ -93,7 +93,18 @@ uint8_t convert_type(GDScriptWasmCompilerSelf &self, Variant::Type p_type) {
 }
 
 void compile_expression(GDScriptWasmCompilerSelf &self, const GDScriptParser::ExpressionNode *p_expression) {
+	// print_line("=== compile_expression");
+	// print_line(p_expression->type);
+	// print_line("=== /compile_expression");
 	switch (p_expression->type) {
+		case GDScriptParser::Node::BINARY_OPERATOR: {
+			const GDScriptParser::BinaryOpNode *op = static_cast<const GDScriptParser::BinaryOpNode *>(p_expression);
+			// op->left_operand
+		} break;
+		case GDScriptParser::Node::CALL: {
+			const GDScriptParser::CallNode *call = static_cast<const GDScriptParser::CallNode *>(p_expression);
+			// call->callee
+		} break;
 		case GDScriptParser::Node::LITERAL: {
 			const GDScriptParser::LiteralNode *literal = static_cast<const GDScriptParser::LiteralNode *>(p_expression);
 			// TODO literal->value
@@ -141,8 +152,8 @@ void compile_block(GDScriptWasmCompilerSelf &self, GDScriptParser::SuiteNode *p_
 }
 
 void compile_function(GDScriptWasmCompilerSelf &self, const GDScriptParser::FunctionNode *p_func) {
-	String name = p_func->identifier->name;
-	CharString utf8 = name.utf8();
+	StringName name = p_func->identifier->name;
+	CharString utf8 = String(name).utf8();
 	// Make overloads for optional params.
 	bool first = true;
 	for (int i = p_func->parameters.size(); i >= 0; i--) {
@@ -172,10 +183,22 @@ void compile_function(GDScriptWasmCompilerSelf &self, const GDScriptParser::Func
 			}
 			// TODO Fill function content.
 		});
+		if (first) {
+			// We also insert in order, so we can calculate fun value for overloads.
+			// Each function that gets added to cg increments by 1.
+			// Just need to check if the overload is valid before calculating the reference.
+			self.functions.insert(name, fun);
+		}
+		// if (self.dump_wasm) {
+		// 	print_line("=== funs has ===");
+		// 	print_line(name);
+		// 	print_line(fun);
+		// 	print_line("=== /funs has ===");
+		// }
 		first = false;
 		// -1 to exclude null char.
 		std::string utf8_string{ utf8.ptr(), static_cast<size_t>(utf8.size()) - 1 };
-		// TODO Repeat for optional params. Name /0, /1, ...
+		// TODO Also handle varargs cases.
 		utf8_string += '/';
 		utf8_string.append(std::to_string(i));
 		self.cg.export_(fun, utf8_string);
