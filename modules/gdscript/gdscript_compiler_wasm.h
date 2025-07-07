@@ -41,6 +41,7 @@ struct GDScriptWasmCompilerSelf {
 	wasmblr::CodeGenerator cg;
 	bool dump_wasm = false;
 	HashMap<StringName, uint32_t> functions;
+	Vector<const GDScriptParser::FunctionNode *> nesting;
 };
 
 class GDScriptWasmCompiler {

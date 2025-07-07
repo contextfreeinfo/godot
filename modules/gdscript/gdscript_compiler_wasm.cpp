@@ -108,9 +108,7 @@ void compile_binary(GDScriptWasmCompilerSelf &self, const GDScriptParser::Binary
 				default: {
 					// Presumably a bool, char, or else handle of some sort.
 					if (self.dump_wasm) {
-						print_line("=== OP_ADDITION");
-						print_line(p_binary->datatype.builtin_type);
-						print_line("=== /OP_ADDITION");
+						print_line("=== OP_ADDITION:", p_binary->datatype.builtin_type);
 					}
 				} break;
 			}
@@ -126,9 +124,7 @@ void compile_binary(GDScriptWasmCompilerSelf &self, const GDScriptParser::Binary
 				default: {
 					// Presumably a bool, char, or else handle of some sort.
 					if (self.dump_wasm) {
-						print_line("=== OP_COMP_EQUAL");
-						print_line(p_binary->datatype.builtin_type);
-						print_line("=== /OP_COMP_EQUAL");
+						print_line("=== OP_COMP_EQUAL:", p_binary->datatype.builtin_type);
 					}
 				} break;
 			}
@@ -144,9 +140,7 @@ void compile_binary(GDScriptWasmCompilerSelf &self, const GDScriptParser::Binary
 				default: {
 					// Presumably a bool, char, or else handle of some sort.
 					if (self.dump_wasm) {
-						print_line("=== OP_COMP_GREATER");
-						print_line(p_binary->datatype.builtin_type);
-						print_line("=== /OP_COMP_GREATER");
+						print_line("=== OP_COMP_GREATER:", p_binary->datatype.builtin_type);
 					}
 				} break;
 			}
@@ -162,9 +156,7 @@ void compile_binary(GDScriptWasmCompilerSelf &self, const GDScriptParser::Binary
 				default: {
 					// Presumably a bool, char, or else handle of some sort.
 					if (self.dump_wasm) {
-						print_line("=== OP_COMP_LESS_EQUAL");
-						print_line(p_binary->datatype.builtin_type);
-						print_line("=== /OP_COMP_LESS_EQUAL");
+						print_line("=== OP_COMP_LESS_EQUAL:", p_binary->datatype.builtin_type);
 					}
 				} break;
 			}
@@ -180,9 +172,7 @@ void compile_binary(GDScriptWasmCompilerSelf &self, const GDScriptParser::Binary
 				default: {
 					// Presumably a bool, char, or else handle of some sort.
 					if (self.dump_wasm) {
-						print_line("=== OP_MODULO");
-						print_line(p_binary->datatype.builtin_type);
-						print_line("=== /OP_MODULO");
+						print_line("=== OP_MODULO:", p_binary->datatype.builtin_type);
 					}
 				} break;
 			}
@@ -198,18 +188,14 @@ void compile_binary(GDScriptWasmCompilerSelf &self, const GDScriptParser::Binary
 				default: {
 					// Presumably a bool, char, or else handle of some sort.
 					if (self.dump_wasm) {
-						print_line("=== OP_MULTIPLICATION");
-						print_line(p_binary->datatype.builtin_type);
-						print_line("=== /OP_MULTIPLICATION");
+						print_line("=== OP_MULTIPLICATION:", p_binary->datatype.builtin_type);
 					}
 				} break;
 			}
 		} break;
 		default: {
 			if (self.dump_wasm) {
-				print_line("=== p_binary->operation");
-				print_line(p_binary->operation);
-				print_line("=== /p_binary->operation");
+				print_line("=== p_binary->operation:", p_binary->operation);
 			}
 		} break;
 	}
@@ -217,21 +203,41 @@ void compile_binary(GDScriptWasmCompilerSelf &self, const GDScriptParser::Binary
 
 void compile_call(GDScriptWasmCompilerSelf &self, const GDScriptParser::CallNode *p_call) {
 	compile_expression(self, p_call->callee);
-	for (int i = 0; i < p_call->arguments.size(); i++) {
+	for (int i = 0; i < p_call->arguments.size(); i += 1) {
 		compile_expression(self, p_call->arguments[i]);
 	}
 }
 
 void compile_identifier(GDScriptWasmCompilerSelf &self, const GDScriptParser::IdentifierNode *p_identifier) {
 	if (self.dump_wasm) {
-		print_line("=== compile_identifier");
-		print_line(p_identifier->name);
-		print_line(p_identifier->source);
-		print_line("=== /compile_identifier");
+		print_line("=== compile_identifier:", p_identifier->name, p_identifier->source);
 	}
 	switch (p_identifier->source) {
-		case GDScriptParser::IdentifierNode::MEMBER_FUNCTION: {
-			// TODO
+		case GDScriptParser::IdentifierNode::FUNCTION_PARAMETER: {
+			for (int i = 0; i < self.nesting.size(); i += 1) {
+				const GDScriptParser::FunctionNode *fun = self.nesting[i];
+				for (int j = 0; j < fun->parameters.size(); j += 1) {
+					const GDScriptParser::ParameterNode *parameter = fun->parameters[j];
+					if (parameter->identifier->name == p_identifier->name) {
+						if (self.dump_wasm) {
+							// TODO Need some way to correlate this back to wasm things.
+							print_line("=== found parameter:", i, j);
+							goto PARAMETER_FOUND;
+						}
+					}
+				}
+			}
+		PARAMETER_FOUND:;
+		} break;
+		case GDScriptParser::IdentifierNode::UNDEFINED_SOURCE: {
+			uint32_t *fun = self.functions.getptr(p_identifier->name);
+			if (fun) {
+				if (self.dump_wasm) {
+					print_line("=== found fun:", *fun);
+				}
+			} else {
+				//
+			}
 		} break;
 		default: {
 			if (self.dump_wasm) {
@@ -262,9 +268,7 @@ void compile_expression(GDScriptWasmCompilerSelf &self, const GDScriptParser::Ex
 		} break;
 		default: {
 			if (self.dump_wasm) {
-				print_line("=== compile_expression");
-				print_line(p_expression->type);
-				print_line("=== /compile_expression");
+				print_line("=== compile_expression:", p_expression->type);
 			}
 		} break;
 	}
@@ -297,9 +301,7 @@ void compile_block(GDScriptWasmCompilerSelf &self, GDScriptParser::SuiteNode *p_
 				if (statement->is_expression()) {
 					compile_expression(self, static_cast<const GDScriptParser::ExpressionNode *>(statement));
 				} else if (self.dump_wasm) {
-					print_line("=== statement");
-					print_line(statement->type);
-					print_line("=== /statement");
+					print_line("=== statement:", statement->type);
 				}
 			} break;
 		}
@@ -330,13 +332,18 @@ void compile_function(GDScriptWasmCompilerSelf &self, const GDScriptParser::Func
 		}
 		// Emit happens late, so capture by value anything that won't live until emit time.
 		uint32_t fun = self.cg.function(wasm_params, wasm_return_type, [&self, p_func, first]() {
+			// Track context. Stack presumably handles nested lambdas inside functions.
+			// TODO Except we'll need to generate lambdas as separate top-level functions.
+			self.nesting.push_back(p_func);
+			// Fill body.
 			if (first) {
 				// Full function.
 				compile_block(self, p_func->body);
 			} else {
 				// TODO Call previous with default value.
 			}
-			// TODO Fill function content.
+			// Pop context.
+			self.nesting.remove_at(self.nesting.size() - 1);
 		});
 		if (first) {
 			// We also insert in order, so we can calculate fun value for overloads.
