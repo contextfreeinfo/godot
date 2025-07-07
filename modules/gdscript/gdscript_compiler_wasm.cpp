@@ -93,24 +93,153 @@ uint8_t convert_type(GDScriptWasmCompilerSelf &self, Variant::Type p_type) {
 	}
 }
 
+void compile_binary(GDScriptWasmCompilerSelf &self, const GDScriptParser::BinaryOpNode *p_binary) {
+	compile_expression(self, p_binary->left_operand);
+	compile_expression(self, p_binary->right_operand);
+	switch (p_binary->operation) {
+		case GDScriptParser::BinaryOpNode::OP_ADDITION: {
+			switch (p_binary->datatype.builtin_type) {
+				// case Variant::FLOAT: {
+				// 	self.cg.f64.add();
+				// } break;
+				// case Variant::INT: {
+				// 	self.cg.i64.add();
+				// } break;
+				default: {
+					// Presumably a bool, char, or else handle of some sort.
+					if (self.dump_wasm) {
+						print_line("=== OP_ADDITION");
+						print_line(p_binary->datatype.builtin_type);
+						print_line("=== /OP_ADDITION");
+					}
+				} break;
+			}
+		} break;
+		case GDScriptParser::BinaryOpNode::OP_COMP_EQUAL: {
+			switch (p_binary->datatype.builtin_type) {
+				// case Variant::FLOAT: {
+				// 	self.cg.f64.eq();
+				// } break;
+				// case Variant::INT: {
+				// 	self.cg.i64.eq();
+				// } break;
+				default: {
+					// Presumably a bool, char, or else handle of some sort.
+					if (self.dump_wasm) {
+						print_line("=== OP_COMP_EQUAL");
+						print_line(p_binary->datatype.builtin_type);
+						print_line("=== /OP_COMP_EQUAL");
+					}
+				} break;
+			}
+		} break;
+		case GDScriptParser::BinaryOpNode::OP_COMP_GREATER: {
+			switch (p_binary->datatype.builtin_type) {
+				// case Variant::FLOAT: {
+				// 	self.cg.f64.gt();
+				// } break;
+				// case Variant::INT: {
+				// 	self.cg.i64.gt_s();
+				// } break;
+				default: {
+					// Presumably a bool, char, or else handle of some sort.
+					if (self.dump_wasm) {
+						print_line("=== OP_COMP_GREATER");
+						print_line(p_binary->datatype.builtin_type);
+						print_line("=== /OP_COMP_GREATER");
+					}
+				} break;
+			}
+		} break;
+		case GDScriptParser::BinaryOpNode::OP_COMP_LESS_EQUAL: {
+			switch (p_binary->datatype.builtin_type) {
+				// case Variant::FLOAT: {
+				// 	self.cg.f64.le();
+				// } break;
+				// case Variant::INT: {
+				// 	self.cg.i64.le_s();
+				// } break;
+				default: {
+					// Presumably a bool, char, or else handle of some sort.
+					if (self.dump_wasm) {
+						print_line("=== OP_COMP_LESS_EQUAL");
+						print_line(p_binary->datatype.builtin_type);
+						print_line("=== /OP_COMP_LESS_EQUAL");
+					}
+				} break;
+			}
+		} break;
+		case GDScriptParser::BinaryOpNode::OP_MODULO: {
+			switch (p_binary->datatype.builtin_type) {
+				// case Variant::FLOAT: {
+				// 	// self.cg.f64.rem();
+				// } break;
+				// case Variant::INT: {
+				// 	self.cg.i64.rem_s();
+				// } break;
+				default: {
+					// Presumably a bool, char, or else handle of some sort.
+					if (self.dump_wasm) {
+						print_line("=== OP_MODULO");
+						print_line(p_binary->datatype.builtin_type);
+						print_line("=== /OP_MODULO");
+					}
+				} break;
+			}
+		} break;
+		case GDScriptParser::BinaryOpNode::OP_MULTIPLICATION: {
+			switch (p_binary->datatype.builtin_type) {
+				// case Variant::FLOAT: {
+				// 	self.cg.f64.mul();
+				// } break;
+				// case Variant::INT: {
+				// 	self.cg.i64.mul();
+				// } break;
+				default: {
+					// Presumably a bool, char, or else handle of some sort.
+					if (self.dump_wasm) {
+						print_line("=== OP_MULTIPLICATION");
+						print_line(p_binary->datatype.builtin_type);
+						print_line("=== /OP_MULTIPLICATION");
+					}
+				} break;
+			}
+		} break;
+		default: {
+			if (self.dump_wasm) {
+				print_line("=== p_binary->operation");
+				print_line(p_binary->operation);
+				print_line("=== /p_binary->operation");
+			}
+		} break;
+	}
+}
+
 void compile_call(GDScriptWasmCompilerSelf &self, const GDScriptParser::CallNode *p_call) {
 	compile_expression(self, p_call->callee);
+	for (int i = 0; i < p_call->arguments.size(); i++) {
+		compile_expression(self, p_call->arguments[i]);
+	}
 }
 
 void compile_identifier(GDScriptWasmCompilerSelf &self, const GDScriptParser::IdentifierNode *p_identifier) {
-	print_line("=== compile_identifier");
-	print_line(p_identifier->name);
-	print_line(p_identifier->source);
-	print_line("=== /compile_identifier");
+	if (self.dump_wasm) {
+		print_line("=== compile_identifier");
+		print_line(p_identifier->name);
+		print_line(p_identifier->source);
+		print_line("=== /compile_identifier");
+	}
 	switch (p_identifier->source) {
 		case GDScriptParser::IdentifierNode::MEMBER_FUNCTION: {
 			// TODO
 		} break;
 		default: {
-			// print_line("=== compile_identifier");
-			// print_line(p_identifier->name);
-			// print_line(p_identifier->source);
-			// print_line("=== /compile_identifier");
+			if (self.dump_wasm) {
+				// print_line("=== compile_identifier");
+				// print_line(p_identifier->name);
+				// print_line(p_identifier->source);
+				// print_line("=== /compile_identifier");
+			}
 		} break;
 	}
 }
@@ -118,7 +247,7 @@ void compile_identifier(GDScriptWasmCompilerSelf &self, const GDScriptParser::Id
 void compile_expression(GDScriptWasmCompilerSelf &self, const GDScriptParser::ExpressionNode *p_expression) {
 	switch (p_expression->type) {
 		case GDScriptParser::Node::BINARY_OPERATOR: {
-			const GDScriptParser::BinaryOpNode *op = static_cast<const GDScriptParser::BinaryOpNode *>(p_expression);
+			compile_binary(self, static_cast<const GDScriptParser::BinaryOpNode *>(p_expression));
 			// op->left_operand
 		} break;
 		case GDScriptParser::Node::CALL: {
@@ -132,9 +261,11 @@ void compile_expression(GDScriptWasmCompilerSelf &self, const GDScriptParser::Ex
 			// TODO literal->value
 		} break;
 		default: {
-			print_line("=== compile_expression");
-			print_line(p_expression->type);
-			print_line("=== /compile_expression");
+			if (self.dump_wasm) {
+				print_line("=== compile_expression");
+				print_line(p_expression->type);
+				print_line("=== /compile_expression");
+			}
 		} break;
 	}
 }
@@ -154,9 +285,6 @@ void compile_block(GDScriptWasmCompilerSelf &self, GDScriptParser::SuiteNode *p_
 	for (int i = 0; i < p_block->statements.size(); i++) {
 		const GDScriptParser::Node *statement = p_block->statements[i];
 		switch (statement->type) {
-			case GDScriptParser::Node::CALL: {
-				//
-			} break;
 			case GDScriptParser::Node::IF: {
 				compile_if(self, static_cast<const GDScriptParser::IfNode *>(statement));
 			} break;
@@ -166,10 +294,13 @@ void compile_block(GDScriptWasmCompilerSelf &self, GDScriptParser::SuiteNode *p_
 				self.cg.return_();
 			} break;
 			default: {
-				// if (self.dump_wasm) {
-				// 	print_line("--- statement kind ---");
-				// 	print_line(statement->type);
-				// }
+				if (statement->is_expression()) {
+					compile_expression(self, static_cast<const GDScriptParser::ExpressionNode *>(statement));
+				} else if (self.dump_wasm) {
+					print_line("=== statement");
+					print_line(statement->type);
+					print_line("=== /statement");
+				}
 			} break;
 		}
 	}
