@@ -35,17 +35,22 @@
 
 #include <wasmblr.h>
 
-using GDScriptWasmFunction = void;
-
-struct GDScriptWasmCompilerSelf {
-	wasmblr::CodeGenerator cg;
-	bool dump_wasm = false;
-	HashMap<StringName, uint32_t> functions;
-	Vector<const GDScriptParser::FunctionNode *> nesting;
-};
-
 class GDScriptWasmCompiler {
-	GDScriptWasmCompilerSelf self;
+public:
+	struct FunctionInfo {
+		const GDScriptParser::FunctionNode *node;
+		uint32_t wasm_id;
+	};
+
+	struct Self {
+		wasmblr::CodeGenerator cg;
+		bool dump_wasm = false;
+		HashMap<StringName, FunctionInfo> functions;
+		Vector<const GDScriptParser::Node *> scopes;
+	};
+
+private:
+	Self self;
 
 public:
 	Error compile(const GDScriptParser *p_parser, GDScript *p_script, bool p_keep_state = false);

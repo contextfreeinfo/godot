@@ -78,10 +78,13 @@ $ wasm2wat --generate-names --fold-exprs recursion.gd.wasm
 
 namespace {
 
-void compile_block(GDScriptWasmCompilerSelf &self, GDScriptParser::SuiteNode *p_block);
-void compile_expression(GDScriptWasmCompilerSelf &self, const GDScriptParser::ExpressionNode *p_expression);
+using FunctionInfo = GDScriptWasmCompiler::FunctionInfo;
+using Self = GDScriptWasmCompiler::Self;
 
-uint8_t convert_type(GDScriptWasmCompilerSelf &self, Variant::Type p_type) {
+void compile_block(Self &self, GDScriptParser::SuiteNode *p_block);
+void compile_expression(Self &self, const GDScriptParser::ExpressionNode *p_expression);
+
+uint8_t convert_type(Self &self, Variant::Type p_type) {
 	switch (p_type) {
 		case Variant::FLOAT:
 			return self.cg.f64;
@@ -93,7 +96,7 @@ uint8_t convert_type(GDScriptWasmCompilerSelf &self, Variant::Type p_type) {
 	}
 }
 
-void compile_binary(GDScriptWasmCompilerSelf &self, const GDScriptParser::BinaryOpNode *p_binary) {
+void compile_binary(Self &self, const GDScriptParser::BinaryOpNode *p_binary) {
 	compile_expression(self, p_binary->left_operand);
 	compile_expression(self, p_binary->right_operand);
 	switch (p_binary->operation) {
@@ -201,28 +204,31 @@ void compile_binary(GDScriptWasmCompilerSelf &self, const GDScriptParser::Binary
 	}
 }
 
-void compile_call(GDScriptWasmCompilerSelf &self, const GDScriptParser::CallNode *p_call) {
+void compile_call(Self &self, const GDScriptParser::CallNode *p_call) {
 	compile_expression(self, p_call->callee);
 	for (int i = 0; i < p_call->arguments.size(); i += 1) {
 		compile_expression(self, p_call->arguments[i]);
 	}
 }
 
-void compile_identifier(GDScriptWasmCompilerSelf &self, const GDScriptParser::IdentifierNode *p_identifier) {
+void compile_identifier(Self &self, const GDScriptParser::IdentifierNode *p_identifier) {
 	if (self.dump_wasm) {
 		print_line("=== compile_identifier:", p_identifier->name, p_identifier->source);
 	}
 	switch (p_identifier->source) {
 		case GDScriptParser::IdentifierNode::FUNCTION_PARAMETER: {
-			for (int i = 0; i < self.nesting.size(); i += 1) {
-				const GDScriptParser::FunctionNode *fun = self.nesting[i];
-				for (int j = 0; j < fun->parameters.size(); j += 1) {
-					const GDScriptParser::ParameterNode *parameter = fun->parameters[j];
-					if (parameter->identifier->name == p_identifier->name) {
-						if (self.dump_wasm) {
-							// TODO Need some way to correlate this back to wasm things.
-							print_line("=== found parameter:", i, j);
-							goto PARAMETER_FOUND;
+			for (int i = 0; i < self.scopes.size(); i += 1) {
+				const GDScriptParser::Node *scope = self.scopes[i];
+				if (scope->type == GDScriptParser::Node::FUNCTION) {
+					const GDScriptParser::FunctionNode *fun = static_cast<const GDScriptParser::FunctionNode *>(scope);
+					for (int j = 0; j < fun->parameters.size(); j += 1) {
+						const GDScriptParser::ParameterNode *parameter = fun->parameters[j];
+						if (parameter->identifier->name == p_identifier->name) {
+							if (self.dump_wasm) {
+								// TODO Need some way to correlate this back to wasm things.
+								print_line("=== found parameter:", i, j);
+								goto PARAMETER_FOUND;
+							}
 						}
 					}
 				}
@@ -230,10 +236,10 @@ void compile_identifier(GDScriptWasmCompilerSelf &self, const GDScriptParser::Id
 		PARAMETER_FOUND:;
 		} break;
 		case GDScriptParser::IdentifierNode::UNDEFINED_SOURCE: {
-			uint32_t *fun = self.functions.getptr(p_identifier->name);
+			FunctionInfo *fun = self.functions.getptr(p_identifier->name);
 			if (fun) {
 				if (self.dump_wasm) {
-					print_line("=== found fun:", *fun);
+					print_line("=== found fun:", fun->node, fun->wasm_id);
 				}
 			} else {
 				//
@@ -250,7 +256,7 @@ void compile_identifier(GDScriptWasmCompilerSelf &self, const GDScriptParser::Id
 	}
 }
 
-void compile_expression(GDScriptWasmCompilerSelf &self, const GDScriptParser::ExpressionNode *p_expression) {
+void compile_expression(Self &self, const GDScriptParser::ExpressionNode *p_expression) {
 	switch (p_expression->type) {
 		case GDScriptParser::Node::BINARY_OPERATOR: {
 			compile_binary(self, static_cast<const GDScriptParser::BinaryOpNode *>(p_expression));
@@ -274,7 +280,7 @@ void compile_expression(GDScriptWasmCompilerSelf &self, const GDScriptParser::Ex
 	}
 }
 
-void compile_if(GDScriptWasmCompilerSelf &self, const GDScriptParser::IfNode *p_if) {
+void compile_if(Self &self, const GDScriptParser::IfNode *p_if) {
 	compile_expression(self, p_if->condition);
 	self.cg.if_(self.cg.void_);
 	compile_block(self, p_if->true_block);
@@ -285,7 +291,7 @@ void compile_if(GDScriptWasmCompilerSelf &self, const GDScriptParser::IfNode *p_
 	self.cg.end();
 }
 
-void compile_block(GDScriptWasmCompilerSelf &self, GDScriptParser::SuiteNode *p_block) {
+void compile_block(Self &self, GDScriptParser::SuiteNode *p_block) {
 	for (int i = 0; i < p_block->statements.size(); i++) {
 		const GDScriptParser::Node *statement = p_block->statements[i];
 		switch (statement->type) {
@@ -308,7 +314,7 @@ void compile_block(GDScriptWasmCompilerSelf &self, GDScriptParser::SuiteNode *p_
 	}
 }
 
-void compile_function(GDScriptWasmCompilerSelf &self, const GDScriptParser::FunctionNode *p_func) {
+void compile_function(Self &self, const GDScriptParser::FunctionNode *p_func) {
 	StringName name = p_func->identifier->name;
 	CharString utf8 = String(name).utf8();
 	// Make overloads for optional params.
@@ -332,9 +338,10 @@ void compile_function(GDScriptWasmCompilerSelf &self, const GDScriptParser::Func
 		}
 		// Emit happens late, so capture by value anything that won't live until emit time.
 		uint32_t fun = self.cg.function(wasm_params, wasm_return_type, [&self, p_func, first]() {
-			// Track context. Stack presumably handles nested lambdas inside functions.
-			// TODO Except we'll need to generate lambdas as separate top-level functions.
-			self.nesting.push_back(p_func);
+			// Track scope.
+			// TODO Helper to manage push and pop of scopes.
+			// TODO Track info also for lambdas, which need separately generated.
+			self.scopes.push_back(p_func);
 			// Fill body.
 			if (first) {
 				// Full function.
@@ -343,13 +350,13 @@ void compile_function(GDScriptWasmCompilerSelf &self, const GDScriptParser::Func
 				// TODO Call previous with default value.
 			}
 			// Pop context.
-			self.nesting.remove_at(self.nesting.size() - 1);
+			self.scopes.remove_at(self.scopes.size() - 1);
 		});
 		if (first) {
 			// We also insert in order, so we can calculate fun value for overloads.
 			// Each function that gets added to cg increments by 1.
 			// Just need to check if the overload is valid before calculating the reference.
-			self.functions.insert(name, fun);
+			self.functions.insert(name, { .node = p_func, .wasm_id = fun });
 		}
 		// if (self.dump_wasm) {
 		// 	print_line("=== funs has ===");
@@ -371,7 +378,7 @@ void compile_function(GDScriptWasmCompilerSelf &self, const GDScriptParser::Func
 	}
 }
 
-Error compile_class(GDScriptWasmCompilerSelf &self, GDScript *p_script, const GDScriptParser::ClassNode *p_class, bool p_keep_state) {
+Error compile_class(Self &self, GDScript *p_script, const GDScriptParser::ClassNode *p_class, bool p_keep_state) {
 	for (int i = 0; i < p_class->members.size(); i++) {
 		const GDScriptParser::ClassNode::Member &member = p_class->members[i];
 		if (member.type == member.CONSTANT) {
