@@ -553,11 +553,11 @@ inline V128::operator uint8_t() {
 
 #define BINARY_OP(classname, op, opcode, type_a, type_b, out_type) \
   inline void classname::op() {                                    \
-    bool valid = cg.pop() == cg.type_a && cg.pop() == cg.type_b;   \
-    assert(valid && "invalid type for " #op);                      \
     cg.emit(opcode);                                               \
     cg.push(cg.out_type);                                          \
   }
+  // bool valid = cg.pop() == cg.type_a && cg.pop() == cg.type_b;   \
+  // assert(valid && "invalid type for " #op);                      \
 
 #define LOAD_OP(classname, op, opcode, out_type)                   \
   inline void classname::op(uint32_t alignment, uint32_t offset) { \

@@ -110,17 +110,17 @@ WasmType convert_type(Variant::Type p_type) {
 	}
 }
 
-uint8_t convert_type(Self &self, WasmType p_type) {
-	switch (p_type) {
-		case GDScriptWasmCompiler::F64:
-			return self.cg.f64;
-		case GDScriptWasmCompiler::I64:
-			return self.cg.i64;
-		default:
-			// Presumably a bool, char, or else handle of some sort.
-			return self.cg.i32;
-	}
-}
+// uint8_t convert_type(Self &self, WasmType p_type) {
+// 	switch (p_type) {
+// 		case GDScriptWasmCompiler::F64:
+// 			return self.cg.f64;
+// 		case GDScriptWasmCompiler::I64:
+// 			return self.cg.i64;
+// 		default:
+// 			// Presumably a bool, char, or else handle of some sort.
+// 			return self.cg.i32;
+// 	}
+// }
 
 void ensure_local(Self &self, const StringName &name, WasmType type) {
 	LocalGroup *locals = self.locals.getptr(name);
@@ -148,103 +148,118 @@ uint32_t get_local(Self &self, const StringName &name) {
 	return locals ? locals->ids[locals->active_type] : UINT32_MAX;
 }
 
+// WasmType get_local_type(Self &self, const StringName &name) {
+// 	LocalGroup *locals = self.locals.getptr(name);
+// 	return locals ? locals->active_type : WasmType::COUNT;
+// }
+
 void compile_binary(Self &self, const GDScriptParser::BinaryOpNode *p_binary) {
 	compile_expression(self, p_binary->left_operand);
 	compile_expression(self, p_binary->right_operand);
+	if (self.dump_wasm) {
+		print_line("=== compile_binary:", p_binary->operation);
+	}
+	WasmType type = convert_type(p_binary->left_operand->datatype.builtin_type);
 	switch (p_binary->operation) {
 		case GDScriptParser::BinaryOpNode::OP_ADDITION: {
-			switch (p_binary->datatype.builtin_type) {
-				// case Variant::FLOAT: {
-				// 	self.cg.f64.add();
-				// } break;
-				// case Variant::INT: {
-				// 	self.cg.i64.add();
-				// } break;
+			// if (self.dump_wasm) {
+			// 	print_line("=== OP_ADDITION:", type);
+			// }
+			switch (type) {
+				case WasmType::F64: {
+					self.cg.f64.add();
+				} break;
+				case WasmType::I64: {
+					self.cg.i64.add();
+				} break;
 				default: {
 					// Presumably a bool, char, or else handle of some sort.
-					if (self.dump_wasm) {
-						print_line("=== OP_ADDITION:", p_binary->datatype.builtin_type);
-					}
+					// if (self.dump_wasm) {
+					// 	print_line("=== OP_ADDITION:", p_binary->datatype.builtin_type);
+					// }
 				} break;
 			}
 		} break;
 		case GDScriptParser::BinaryOpNode::OP_COMP_EQUAL: {
-			switch (p_binary->datatype.builtin_type) {
-				// case Variant::FLOAT: {
-				// 	self.cg.f64.eq();
-				// } break;
-				// case Variant::INT: {
-				// 	self.cg.i64.eq();
-				// } break;
+			// if (self.dump_wasm) {
+			// 	print_line("=== OP_COMP_EQUAL:", type);
+			// }
+			switch (type) {
+				case WasmType::F64: {
+					self.cg.f64.eq();
+				} break;
+				case WasmType::I64: {
+					self.cg.i64.eq();
+				} break;
 				default: {
 					// Presumably a bool, char, or else handle of some sort.
-					if (self.dump_wasm) {
-						print_line("=== OP_COMP_EQUAL:", p_binary->datatype.builtin_type);
-					}
 				} break;
 			}
 		} break;
 		case GDScriptParser::BinaryOpNode::OP_COMP_GREATER: {
-			switch (p_binary->datatype.builtin_type) {
-				// case Variant::FLOAT: {
-				// 	self.cg.f64.gt();
-				// } break;
-				// case Variant::INT: {
-				// 	self.cg.i64.gt_s();
-				// } break;
+			// if (self.dump_wasm) {
+			// 	print_line("=== OP_COMP_GREATER:", type);
+			// }
+			switch (type) {
+				case WasmType::F64: {
+					self.cg.f64.gt();
+				} break;
+				case WasmType::I64: {
+					self.cg.i64.gt_s();
+				} break;
 				default: {
 					// Presumably a bool, char, or else handle of some sort.
-					if (self.dump_wasm) {
-						print_line("=== OP_COMP_GREATER:", p_binary->datatype.builtin_type);
-					}
 				} break;
 			}
 		} break;
 		case GDScriptParser::BinaryOpNode::OP_COMP_LESS_EQUAL: {
-			switch (p_binary->datatype.builtin_type) {
-				// case Variant::FLOAT: {
-				// 	self.cg.f64.le();
-				// } break;
-				// case Variant::INT: {
-				// 	self.cg.i64.le_s();
-				// } break;
+			// if (self.dump_wasm) {
+			// 	print_line("=== OP_COMP_LESS_EQUAL:", type);
+			// }
+			switch (type) {
+				case WasmType::F64: {
+					self.cg.f64.le();
+				} break;
+				case WasmType::I64: {
+					self.cg.i64.le_s();
+				} break;
 				default: {
-					// Presumably a bool, char, or else handle of some sort.
 					if (self.dump_wasm) {
-						print_line("=== OP_COMP_LESS_EQUAL:", p_binary->datatype.builtin_type);
+						print_line("!!! OP_COMP_LESS_EQUAL:", type);
 					}
+					// Presumably a bool, char, or else handle of some sort.
 				} break;
 			}
 		} break;
 		case GDScriptParser::BinaryOpNode::OP_MODULO: {
-			switch (p_binary->datatype.builtin_type) {
-				// case Variant::FLOAT: {
-				// 	// self.cg.f64.rem();
-				// } break;
-				// case Variant::INT: {
-				// 	self.cg.i64.rem_s();
-				// } break;
+			// if (self.dump_wasm) {
+			// 	print_line("=== OP_MODULO:", type);
+			// }
+			switch (type) {
+				case WasmType::F64: {
+					// self.cg.f64.rem();
+				} break;
+				case WasmType::I64: {
+					self.cg.i64.rem_s();
+				} break;
 				default: {
 					// Presumably a bool, char, or else handle of some sort.
-					if (self.dump_wasm) {
-						print_line("=== OP_MODULO:", p_binary->datatype.builtin_type);
-					}
 				} break;
 			}
 		} break;
 		case GDScriptParser::BinaryOpNode::OP_MULTIPLICATION: {
-			switch (p_binary->datatype.builtin_type) {
-				// case Variant::FLOAT: {
-				// 	self.cg.f64.mul();
-				// } break;
-				// case Variant::INT: {
-				// 	self.cg.i64.mul();
-				// } break;
+			// if (self.dump_wasm) {
+			// 	print_line("=== OP_MULTIPLICATION:", type);
+			// }
+			switch (type) {
+				case WasmType::F64: {
+					self.cg.f64.mul();
+				} break;
+				case WasmType::I64: {
+					self.cg.i64.mul();
+				} break;
 				default: {
 					// Presumably a bool, char, or else handle of some sort.
-					if (self.dump_wasm) {
-						print_line("=== OP_MULTIPLICATION:", p_binary->datatype.builtin_type);
-					}
 				} break;
 			}
 		} break;
@@ -257,10 +272,10 @@ void compile_binary(Self &self, const GDScriptParser::BinaryOpNode *p_binary) {
 }
 
 void compile_call(Self &self, const GDScriptParser::CallNode *p_call) {
-	compile_expression(self, p_call->callee);
 	for (int i = 0; i < p_call->arguments.size(); i += 1) {
 		compile_expression(self, p_call->arguments[i]);
 	}
+	compile_expression(self, p_call->callee);
 }
 
 void compile_identifier(Self &self, const GDScriptParser::IdentifierNode *p_identifier) {
@@ -299,6 +314,25 @@ void compile_identifier(Self &self, const GDScriptParser::IdentifierNode *p_iden
 	}
 }
 
+void compile_literal(Self &self, const GDScriptParser::LiteralNode *literal) {
+	switch (literal->value.get_type()) {
+		case Variant::BOOL: {
+			self.cg.i32.const_(literal->value);
+		} break;
+		case Variant::FLOAT: {
+			self.cg.f64.const_(literal->value);
+		} break;
+		case Variant::INT: {
+			self.cg.i64.const_(literal->value);
+		} break;
+		default: {
+			if (self.dump_wasm) {
+				print_line("=== compile_literal:", literal->value.get_type());
+			}
+		} break;
+	}
+}
+
 void compile_expression(Self &self, const GDScriptParser::ExpressionNode *p_expression) {
 	switch (p_expression->type) {
 		case GDScriptParser::Node::BINARY_OPERATOR: {
@@ -312,8 +346,7 @@ void compile_expression(Self &self, const GDScriptParser::ExpressionNode *p_expr
 			compile_identifier(self, static_cast<const GDScriptParser::IdentifierNode *>(p_expression));
 		} break;
 		case GDScriptParser::Node::LITERAL: {
-			const GDScriptParser::LiteralNode *literal = static_cast<const GDScriptParser::LiteralNode *>(p_expression);
-			// TODO literal->value
+			compile_literal(self, static_cast<const GDScriptParser::LiteralNode *>(p_expression));
 		} break;
 		default: {
 			if (self.dump_wasm) {

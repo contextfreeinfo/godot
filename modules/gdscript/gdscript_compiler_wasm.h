@@ -81,7 +81,7 @@ public:
 		wasmblr::CodeGenerator cg;
 		bool dump_wasm = false;
 		HashMap<StringName, Function> functions;
-		size_t local_count;
+		uint32_t local_count;
 		// Reuse decls for any with the same name and type.
 		// It's illegal to have two locals in the same scope with the same name.
 		// If multiple with same name, export with a `$type` suffix?
