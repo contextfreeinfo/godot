@@ -81,6 +81,7 @@ namespace {
 using Function = GDScriptWasmCompiler::Function;
 using LocalGroup = GDScriptWasmCompiler::LocalGroup;
 using Self = GDScriptWasmCompiler::Self;
+using WasmType = GDScriptWasmCompiler::Type;
 
 void compile_block(Self &self, GDScriptParser::SuiteNode *p_block);
 void compile_expression(Self &self, const GDScriptParser::ExpressionNode *p_expression);
@@ -97,7 +98,7 @@ uint8_t convert_type(Self &self, Variant::Type p_type) {
 	}
 }
 
-GDScriptWasmCompiler::Type convert_type(Variant::Type p_type) {
+WasmType convert_type(Variant::Type p_type) {
 	switch (p_type) {
 		case Variant::FLOAT:
 			return GDScriptWasmCompiler::F64;
@@ -109,7 +110,7 @@ GDScriptWasmCompiler::Type convert_type(Variant::Type p_type) {
 	}
 }
 
-uint8_t convert_type(Self &self, GDScriptWasmCompiler::Type p_type) {
+uint8_t convert_type(Self &self, WasmType p_type) {
 	switch (p_type) {
 		case GDScriptWasmCompiler::F64:
 			return self.cg.f64;
@@ -119,6 +120,32 @@ uint8_t convert_type(Self &self, GDScriptWasmCompiler::Type p_type) {
 			// Presumably a bool, char, or else handle of some sort.
 			return self.cg.i32;
 	}
+}
+
+void ensure_local(Self &self, const StringName &name, WasmType type) {
+	LocalGroup *locals = self.locals.getptr(name);
+	DEV_ASSERT(type < WasmType::COUNT);
+	// This can leave invalid active_type when exiting a local block, but that
+	// should be fine if there are no static errors in the gdscript code.
+	if (locals) {
+		if (locals->ids[type] == UINT32_MAX) {
+			locals->ids[type] = self.local_count;
+			self.local_count += 1;
+		}
+		locals->active_type = type;
+	} else {
+		self.locals[name] = { type, self.local_count };
+		self.local_count += 1;
+	}
+}
+
+void ensure_local(Self &self, const GDScriptParser::AssignableNode *node) {
+	ensure_local(self, node->identifier->name, convert_type(node->datatype.builtin_type));
+}
+
+uint32_t get_local(Self &self, const StringName &name) {
+	LocalGroup *locals = self.locals.getptr(name);
+	return locals ? locals->ids[locals->active_type] : UINT32_MAX;
 }
 
 void compile_binary(Self &self, const GDScriptParser::BinaryOpNode *p_binary) {
@@ -237,26 +264,26 @@ void compile_call(Self &self, const GDScriptParser::CallNode *p_call) {
 }
 
 void compile_identifier(Self &self, const GDScriptParser::IdentifierNode *p_identifier) {
-	if (self.dump_wasm) {
-		print_line("=== compile_identifier:", p_identifier->name, p_identifier->source);
-	}
+	// if (self.dump_wasm) {
+	// 	print_line("=== compile_identifier:", p_identifier->name, p_identifier->source);
+	// }
 	switch (p_identifier->source) {
 		case GDScriptParser::IdentifierNode::FUNCTION_PARAMETER: {
-			LocalGroup *locals = self.locals.getptr(p_identifier->name);
-			if (locals) {
-				uint32_t id = locals->ids[locals->active_type];
-				// self.cg.local.get(id - 1);
-				if (self.dump_wasm) {
-					print_line("=== found local:", id, self.cg.input_types().size());
-				}
+			uint32_t id = get_local(self, p_identifier->name);
+			if (id < UINT32_MAX) {
+				self.cg.local.get(id);
+				// if (self.dump_wasm) {
+				// 	print_line("=== found local:", id, self.cg.input_types().size());
+				// }
 			}
 		} break;
 		case GDScriptParser::IdentifierNode::UNDEFINED_SOURCE: {
 			Function *fun = self.functions.getptr(p_identifier->name);
 			if (fun) {
-				if (self.dump_wasm) {
-					print_line("=== found fun:", fun->node, fun->id);
-				}
+				self.cg.call(fun->id);
+				// if (self.dump_wasm) {
+				// 	print_line("=== found fun:", fun->node, fun->id);
+				// }
 			} else {
 				//
 			}
@@ -356,16 +383,17 @@ void compile_function(Self &self, const GDScriptParser::FunctionNode *p_func) {
 		// Emit happens late, so capture by value anything that won't live until emit time.
 		uint32_t fun = self.cg.function(wasm_params, wasm_return_type, [&self, p_func, first]() {
 			// Track scope.
+			self.local_count = 0;
 			self.locals.clear();
 			if (!p_func->is_static) {
-				self.locals["self"] = { .active_type = GDScriptWasmCompiler::I32, .ids = { self.locals.size() + 1, 0, 0 } };
+				// self.locals["self"] = { GDScriptWasmCompiler::I32, self.locals.size() };
+				ensure_local(self, "self", WasmType::I32);
 				// self.cg.declare_local(convert_type(self, GDScriptWasmCompiler::I32));
 			}
 			for (int j = 0; j < p_func->parameters.size(); j += 1) {
 				GDScriptParser::ParameterNode *parameter = p_func->parameters[j];
-				GDScriptWasmCompiler::LocalGroup group = { .active_type = convert_type(parameter->datatype.builtin_type) };
-				group.ids[group.active_type] = self.locals.size() + 1;
-				self.locals[parameter->identifier->name] = group;
+				ensure_local(self, parameter);
+				// self.locals[parameter->identifier->name] = { convert_type(parameter->datatype.builtin_type), self.locals.size() };
 				// self.cg.declare_local(convert_type(self, group.active_type));
 			}
 			// TODO Helper to manage push and pop of scopes.

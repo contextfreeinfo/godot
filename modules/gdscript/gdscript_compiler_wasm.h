@@ -55,9 +55,21 @@ public:
 		const GDScriptParser::FunctionNode *node;
 	};
 
+	// This is wasteful, but it avoids multiple HashMap lookups, and the number
+	// of local vars is likely to be small enough that memory usage matters
+	// less.
 	struct LocalGroup {
-		Type active_type = Type::COUNT;
-		uint32_t ids[Type::COUNT] = { 0 };
+		Type active_type;
+		uint32_t ids[Type::COUNT];
+		LocalGroup() :
+				active_type(Type::COUNT) {
+			std::fill(std::begin(ids), std::end(ids), UINT32_MAX);
+		}
+		LocalGroup(Type p_active_type, uint32_t p_id) :
+				LocalGroup() {
+			active_type = p_active_type;
+			ids[p_active_type] = p_id;
+		}
 	};
 
 	// struct Scope {
@@ -69,6 +81,7 @@ public:
 		wasmblr::CodeGenerator cg;
 		bool dump_wasm = false;
 		HashMap<StringName, Function> functions;
+		size_t local_count;
 		// Reuse decls for any with the same name and type.
 		// It's illegal to have two locals in the same scope with the same name.
 		// If multiple with same name, export with a `$type` suffix?
