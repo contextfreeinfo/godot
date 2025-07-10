@@ -37,16 +37,45 @@
 
 class GDScriptWasmCompiler {
 public:
-	struct FunctionInfo {
-		const GDScriptParser::FunctionNode *node;
-		uint32_t wasm_id;
+	enum Type {
+		I32,
+		I64,
+		F64,
+		COUNT,
+		FUNCTION,
 	};
+
+	struct Decl {
+		uint32_t id;
+		Type type;
+	};
+
+	struct Function {
+		uint32_t id;
+		const GDScriptParser::FunctionNode *node;
+	};
+
+	struct LocalGroup {
+		Type active_type = Type::COUNT;
+		uint32_t ids[Type::COUNT] = { 0 };
+	};
+
+	// struct Scope {
+	// 	List<HashMap<StringName, uint32_t>> decls;
+	// 	uint32_t local_counts[Type::COUNT];
+	// };
 
 	struct Self {
 		wasmblr::CodeGenerator cg;
 		bool dump_wasm = false;
-		HashMap<StringName, FunctionInfo> functions;
+		HashMap<StringName, Function> functions;
+		// Reuse decls for any with the same name and type.
+		// It's illegal to have two locals in the same scope with the same name.
+		// If multiple with same name, export with a `$type` suffix?
+		HashMap<StringName, LocalGroup> locals;
+		// TODO For debug info?: Vector<StringName> local_names;
 		Vector<const GDScriptParser::Node *> scopes;
+		// List<Scope> scops;
 	};
 
 private:
