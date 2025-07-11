@@ -272,10 +272,36 @@ void compile_binary(Self &self, const GDScriptParser::BinaryOpNode *p_binary) {
 }
 
 void compile_call(Self &self, const GDScriptParser::CallNode *p_call) {
+	Function *fun = nullptr;
+	if (p_call->callee->type == GDScriptParser::Node::IDENTIFIER) {
+		const GDScriptParser::IdentifierNode *identifier = static_cast<const GDScriptParser::IdentifierNode *>(p_call->callee);
+		if (identifier->source == GDScriptParser::IdentifierNode::UNDEFINED_SOURCE) {
+			// See "Self function call" in gdscript_compiler.
+			fun = self.functions.getptr(identifier->name);
+			if (fun) {
+				if (p_call->is_static) {
+					// TODO Pass static instance?
+				} else {
+					// Pass self instance.
+					self.cg.local.get(0);
+				}
+			}
+		}
+	}
 	for (int i = 0; i < p_call->arguments.size(); i += 1) {
 		compile_expression(self, p_call->arguments[i]);
 	}
-	compile_expression(self, p_call->callee);
+	if (fun) {
+		uint32_t gap = 0;
+		if (p_call->arguments.size() < fun->node->parameters.size()) {
+			// TODO Verify that we don't skip past optionals gap.
+			gap = static_cast<uint32_t>(fun->node->parameters.size() - p_call->arguments.size());
+		}
+		self.cg.call(fun->id + gap);
+	} else {
+		// TODO Can we do anything?
+		// compile_expression(self, p_call->callee);
+	}
 }
 
 void compile_identifier(Self &self, const GDScriptParser::IdentifierNode *p_identifier) {
@@ -293,15 +319,16 @@ void compile_identifier(Self &self, const GDScriptParser::IdentifierNode *p_iden
 			}
 		} break;
 		case GDScriptParser::IdentifierNode::UNDEFINED_SOURCE: {
-			Function *fun = self.functions.getptr(p_identifier->name);
-			if (fun) {
-				self.cg.call(fun->id);
-				// if (self.dump_wasm) {
-				// 	print_line("=== found fun:", fun->node, fun->id);
-				// }
-			} else {
-				//
-			}
+			// TODO Can this handle table entry ids?
+			// Function *fun = self.functions.getptr(p_identifier->name);
+			// if (fun) {
+			// 	self.cg.call(fun->id);
+			// 	// if (self.dump_wasm) {
+			// 	// 	print_line("=== found fun:", fun->node, fun->id);
+			// 	// }
+			// } else {
+			// 	//
+			// }
 		} break;
 		default: {
 			if (self.dump_wasm) {
