@@ -87,8 +87,6 @@ public:
 		// If multiple with same name, export with a `$type` suffix?
 		HashMap<StringName, LocalGroup> locals;
 		// TODO For debug info?: Vector<StringName> local_names;
-		Vector<const GDScriptParser::Node *> scopes;
-		// List<Scope> scops;
 	};
 
 private:

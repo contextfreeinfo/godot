@@ -469,6 +469,11 @@ inline void Local::get(int idx) {
     cg.push(input_types.at(idx));
   } else {
     cg.push(cg.locals().at(idx - input_types.size()));
+    // const auto locals_idx = idx - input_types.size();
+    // const auto& locals = cg.locals();
+    // if (locals_idx < locals.size()) {
+    //   cg.push(locals.at(locals_idx));
+    // } // else you get invalid wasm
   }
 
   cg.emit(0x20);

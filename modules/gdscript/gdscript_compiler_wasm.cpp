@@ -156,9 +156,9 @@ uint32_t get_local(Self &self, const StringName &name) {
 void compile_binary(Self &self, const GDScriptParser::BinaryOpNode *p_binary) {
 	compile_expression(self, p_binary->left_operand);
 	compile_expression(self, p_binary->right_operand);
-	if (self.dump_wasm) {
-		print_line("=== compile_binary:", p_binary->operation);
-	}
+	// if (self.dump_wasm) {
+	// 	print_line("=== compile_binary:", p_binary->operation);
+	// }
 	WasmType type = convert_type(p_binary->left_operand->datatype.builtin_type);
 	switch (p_binary->operation) {
 		case GDScriptParser::BinaryOpNode::OP_ADDITION: {
@@ -275,6 +275,7 @@ void compile_call(Self &self, const GDScriptParser::CallNode *p_call) {
 	Function *fun = nullptr;
 	if (p_call->callee->type == GDScriptParser::Node::IDENTIFIER) {
 		const GDScriptParser::IdentifierNode *identifier = static_cast<const GDScriptParser::IdentifierNode *>(p_call->callee);
+		// print_line("=== compile_call:", identifier->name);
 		if (identifier->source == GDScriptParser::IdentifierNode::UNDEFINED_SOURCE) {
 			// See "Self function call" in gdscript_compiler.
 			fun = self.functions.getptr(identifier->name);
@@ -301,6 +302,10 @@ void compile_call(Self &self, const GDScriptParser::CallNode *p_call) {
 	} else {
 		// TODO Can we do anything?
 		// compile_expression(self, p_call->callee);
+		for (int i = 0; i < p_call->arguments.size(); i += 1) {
+			// Drop for now until we can print.
+			self.cg.emit(0x1a);
+		}
 	}
 }
 
@@ -423,6 +428,8 @@ void compile_function(Self &self, const GDScriptParser::FunctionNode *p_func) {
 	CharString utf8 = String(name).utf8();
 	// Make overloads for optional params.
 	bool first = true;
+	uint32_t prev_fun = 0;
+	GDScriptParser::ExpressionNode *prev_initializer = nullptr;
 	for (int i = p_func->parameters.size(); i >= 0; i--) {
 		// TODO Also need a Variant-friendly wrapper for each function?
 		// TODO Or can we store metadata to know how to use each function without that?
@@ -441,7 +448,12 @@ void compile_function(Self &self, const GDScriptParser::FunctionNode *p_func) {
 			wasm_return_type.push_back(convert_type(self, p_func->return_type->datatype.builtin_type));
 		}
 		// Emit happens late, so capture by value anything that won't live until emit time.
-		uint32_t fun = self.cg.function(wasm_params, wasm_return_type, [&self, p_func, first]() {
+		uint32_t fun = self.cg.function(wasm_params, wasm_return_type, [&self, p_func, first, i, prev_fun, prev_initializer]() {
+			// if (self.dump_wasm) {
+			// 	print_line("=== compile_function:", i, self.cg.cur_function_);
+			// 	print_line("                     ", self.cg.locals().size());
+			// 	print_line("                     ", self.cg.input_types().size());
+			// }
 			// Track scope.
 			self.local_count = 0;
 			self.locals.clear();
@@ -450,24 +462,33 @@ void compile_function(Self &self, const GDScriptParser::FunctionNode *p_func) {
 				ensure_local(self, "self", WasmType::I32);
 				// self.cg.declare_local(convert_type(self, GDScriptWasmCompiler::I32));
 			}
-			for (int j = 0; j < p_func->parameters.size(); j += 1) {
+			for (int j = 0; j < i; j += 1) {
 				GDScriptParser::ParameterNode *parameter = p_func->parameters[j];
 				ensure_local(self, parameter);
 				// self.locals[parameter->identifier->name] = { convert_type(parameter->datatype.builtin_type), self.locals.size() };
 				// self.cg.declare_local(convert_type(self, group.active_type));
 			}
-			// TODO Helper to manage push and pop of scopes.
 			// TODO Track info also for lambdas, which need separately generated.
-			self.scopes.push_back(p_func);
 			// Fill body.
 			if (first) {
 				// Full function.
 				compile_block(self, p_func->body);
 			} else {
-				// TODO Call previous with default value.
+				// Call previous with default value.
+				if (!p_func->is_static) {
+					self.cg.local.get(0);
+				}
+				for (int j = 0; j < i; j += 1) {
+					// if (self.dump_wasm) {
+					// 	print_line("=== get:", j + 1, self.cg.input_types().size());
+					// 	// std::cerr << "=== get: " << self.cg.input_types().size() << " " << (j + 1) << std::endl;
+					// 	// std::cerr << "=== get: " << (j + 1) << std::endl;
+					// }
+					self.cg.local.get(j + 1);
+				}
+				compile_expression(self, prev_initializer);
+				self.cg.call(prev_fun);
 			}
-			// Pop context.
-			self.scopes.remove_at(self.scopes.size() - 1);
 		});
 		if (first) {
 			// We also insert in order, so we can calculate fun value for overloads.
@@ -492,6 +513,8 @@ void compile_function(Self &self, const GDScriptParser::FunctionNode *p_func) {
 			// That was the last.
 			break;
 		}
+		prev_fun = fun;
+		prev_initializer = initializer;
 	}
 }
 
@@ -510,6 +533,9 @@ Error compile_class(Self &self, GDScript *p_script, const GDScriptParser::ClassN
 				break;
 			}
 		}
+	}
+	if (!self.dump_wasm) {
+		return OK;
 	}
 	for (int i = 0; i < p_class->members.size(); i++) {
 		const GDScriptParser::ClassNode::Member &member = p_class->members[i];
@@ -548,6 +574,9 @@ Error GDScriptWasmCompiler::compile(const GDScriptParser *p_parser, GDScript *p_
 	const GDScriptParser *parser = p_parser;
 	const GDScriptParser::ClassNode *root = parser->get_tree();
 	compile_class(self, p_script, root, p_keep_state);
+	if (!self.dump_wasm) {
+		return OK;
+	}
 	// GDScriptParser::TreePrinter printer;
 	// printer.print_tree(*p_parser);
 	String tmp_dir = "/tmp/tom-godot";
