@@ -318,7 +318,7 @@ struct Function {
 };
 
 struct Import {
-  uint32_t id;
+  uint32_t idx;
   std::string mod_name;
   std::string name;
 };
@@ -986,7 +986,7 @@ inline uint32_t CodeGenerator::import_(
   auto idx = static_cast<uint32_t>(functions_.size());
   functions_.emplace_back(input_types, output_types);
   imported_functions_.push_back(
-    Import { .id = idx, .mod_name = mod_name, .name = name }
+    Import { .idx = idx, .mod_name = mod_name, .name = name }
   );
   return idx;
 }
@@ -1030,29 +1030,37 @@ inline std::vector<uint8_t> CodeGenerator::emit() {
   concat(emitted_bytes, encode_unsigned(type_section_bytes.size()));
   concat(emitted_bytes, type_section_bytes);
 
-	std::vector<uint8_t> import_section_bytes;
-  if (memory.is_import()) {
-    // TODO Imported functions.
-		concat(import_section_bytes, encode_unsigned(1)); // 1 import
-    concat(import_section_bytes, encode_string(memory.a_string));
-    concat(import_section_bytes, encode_string(memory.b_string));
-		import_section_bytes.emplace_back(0x2); // memory flag
-    if (memory.min && memory.max) {
-			if (memory.is_shared) {
-				import_section_bytes.emplace_back(0x3);
-			} else {
-        import_section_bytes.emplace_back(0x01);
-			}
-      concat(import_section_bytes, encode_unsigned(memory.min));
-      concat(import_section_bytes, encode_unsigned(memory.max));
-		} else {
-			assert(!memory.is_shared && "shared memory must have a max size");
-      concat(import_section_bytes, encode_unsigned(memory.min));
-		}
+  uint32_t num_imports = imported_functions_.size() + memory.is_import();
+  if (num_imports) {
+  	std::vector<uint8_t> import_section_bytes;
+		concat(import_section_bytes, encode_unsigned(num_imports));
+    if (memory.is_import()) {
+      concat(import_section_bytes, encode_string(memory.a_string));
+      concat(import_section_bytes, encode_string(memory.b_string));
+      import_section_bytes.emplace_back(0x2); // memory flag
+      if (memory.min && memory.max) {
+        if (memory.is_shared) {
+          import_section_bytes.emplace_back(0x3);
+        } else {
+          import_section_bytes.emplace_back(0x01);
+        }
+        concat(import_section_bytes, encode_unsigned(memory.min));
+        concat(import_section_bytes, encode_unsigned(memory.max));
+      } else {
+        assert(!memory.is_shared && "shared memory must have a max size");
+        concat(import_section_bytes, encode_unsigned(memory.min));
+      }
+    }
+    for (auto& imp : imported_functions_) {
+      concat(import_section_bytes, encode_string(imp.mod_name));
+      concat(import_section_bytes, encode_string(imp.name));
+      import_section_bytes.emplace_back(0x0); // function flag
+      concat(import_section_bytes, encode_unsigned(imp.idx));
+    }
     emitted_bytes.emplace_back(0x2);
     concat(emitted_bytes, encode_unsigned(import_section_bytes.size()));
     concat(emitted_bytes, import_section_bytes);
-	}
+  }
 
   std::vector<uint8_t> function_section_bytes;
   size_t num_local_functions = functions_.size() - imported_functions_.size();

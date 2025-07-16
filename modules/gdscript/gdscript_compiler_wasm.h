@@ -76,6 +76,7 @@ public:
 		wasmblr::CodeGenerator cg;
 		bool dump_wasm = false;
 		HashMap<StringName, Function> functions;
+		HashMap<StringName, uint32_t> imports;
 		uint32_t local_count;
 		// Reuse decls for any with the same name and type.
 		// It's illegal to have two locals in the same scope with the same name.

@@ -300,7 +300,7 @@ void compile_call(Self &self, const GDScriptParser::CallNode *p_call) {
 		}
 		self.cg.call(fun->id + gap);
 	} else {
-		// TODO Can we do anything?
+		// TODO Descriptions for imported functions?
 		// compile_expression(self, p_call->callee);
 		for (int i = 0; i < p_call->arguments.size(); i += 1) {
 			// Drop for now until we can print.
@@ -567,12 +567,19 @@ Error compile_class(Self &self, GDScript *p_script, const GDScriptParser::ClassN
 	return OK;
 }
 
+void compile_imports(Self &self, GDScript *p_script, const GDScriptParser::ClassNode *p_class) {
+	// TODO Either a prepass or make cg more flexible for defining imports as we go.
+	self.imports["print_bool"] = self.cg.import_("godot", "print_bool", { self.cg.i32 }, {});
+	self.imports["print_int"] = self.cg.import_("godot", "print_int", { self.cg.i64 }, {});
+}
+
 } //namespace
 
 Error GDScriptWasmCompiler::compile(const GDScriptParser *p_parser, GDScript *p_script, bool p_keep_state) {
 	Error err = OK;
 	const GDScriptParser *parser = p_parser;
 	const GDScriptParser::ClassNode *root = parser->get_tree();
+	compile_imports(self, p_script, root);
 	compile_class(self, p_script, root, p_keep_state);
 	if (!self.dump_wasm) {
 		return OK;
