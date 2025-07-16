@@ -72,11 +72,6 @@ public:
 		}
 	};
 
-	// struct Scope {
-	// 	List<HashMap<StringName, uint32_t>> decls;
-	// 	uint32_t local_counts[Type::COUNT];
-	// };
-
 	struct Self {
 		wasmblr::CodeGenerator cg;
 		bool dump_wasm = false;
@@ -84,8 +79,8 @@ public:
 		uint32_t local_count;
 		// Reuse decls for any with the same name and type.
 		// It's illegal to have two locals in the same scope with the same name.
-		// If multiple with same name, export with a `$type` suffix?
 		HashMap<StringName, LocalGroup> locals;
+		// If multiple with same name, export with a `$type` suffix?
 		// TODO For debug info?: Vector<StringName> local_names;
 	};
 

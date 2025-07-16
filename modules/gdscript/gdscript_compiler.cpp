@@ -3288,7 +3288,8 @@ Error GDScriptCompiler::compile(const GDScriptParser *p_parser, GDScript *p_scri
 	if (err) {
 		_set_error(R"(Failed to compile depended scripts.)", nullptr);
 	}
-	// Do this last because some additional info is filled in above.
+	// TODO How much of the above can we reuse?
+	// TODO Do we want to replace any bytecode when calling into wasm?
 	wasm_compiler.compile(p_parser, p_script, p_keep_state);
 	return err;
 }
