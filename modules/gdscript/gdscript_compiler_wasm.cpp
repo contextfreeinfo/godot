@@ -300,11 +300,45 @@ void compile_call(Self &self, const GDScriptParser::CallNode *p_call) {
 		}
 		self.cg.call(fun->id + gap);
 	} else {
-		// TODO Descriptions for imported functions?
-		// compile_expression(self, p_call->callee);
-		for (int i = 0; i < p_call->arguments.size(); i += 1) {
-			// Drop for now until we can print.
-			self.cg.emit(0x1a);
+		bool handled = false;
+		if (p_call->callee->type == GDScriptParser::Node::IDENTIFIER) {
+			const GDScriptParser::IdentifierNode *identifier = static_cast<const GDScriptParser::IdentifierNode *>(p_call->callee);
+			if (identifier->name == "print") {
+				// TODO Generalize providing imports.
+				// TODO Descriptions for imported functions?
+				const char *name = nullptr;
+				switch (p_call->arguments.size()) {
+					case 0: {
+						name = "print/0";
+					} break;
+					case 1: {
+						switch (p_call->arguments[0]->datatype.builtin_type) {
+							case Variant::BOOL: {
+								name = "print/bool";
+							} break;
+							case Variant::INT: {
+								name = "print/int";
+							} break;
+							default: {
+								// TODO Other types.
+							} break;
+						}
+					} break;
+					default: {
+						// TODO Generalize variant varargs.
+					} break;
+				}
+				if (name) {
+					self.cg.call(self.imports[name]);
+					handled = true;
+				}
+			}
+		}
+		if (!handled) {
+			for (int i = 0; i < p_call->arguments.size(); i += 1) {
+				// Drop args for missing functions for now.
+				self.cg.emit(0x1a);
+			}
 		}
 	}
 }
@@ -569,8 +603,9 @@ Error compile_class(Self &self, GDScript *p_script, const GDScriptParser::ClassN
 
 void compile_imports(Self &self, GDScript *p_script, const GDScriptParser::ClassNode *p_class) {
 	// TODO Either a prepass or make cg more flexible for defining imports as we go.
-	self.imports["print_bool"] = self.cg.import_("godot", "print_bool", { self.cg.i32 }, {});
-	self.imports["print_int"] = self.cg.import_("godot", "print_int", { self.cg.i64 }, {});
+	self.imports["print/0"] = self.cg.import_("godot", "print/0", {}, {});
+	self.imports["print/bool"] = self.cg.import_("godot", "print/bool", { self.cg.i32 }, {});
+	self.imports["print/int"] = self.cg.import_("godot", "print/int", { self.cg.i64 }, {});
 }
 
 } //namespace
