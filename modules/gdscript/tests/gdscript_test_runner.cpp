@@ -46,6 +46,8 @@
 
 #include "tests/test_macros.h"
 
+#include <wasm_export.h>
+
 namespace GDScriptTests {
 
 void init_autoloads() {
@@ -186,6 +188,8 @@ static String strip_warnings(const String &p_expected) {
 #endif
 
 int GDScriptTestRunner::run_tests() {
+	wasm_runtime_init();
+
 	if (!make_tests()) {
 		FAIL("An error occurred while making the tests.");
 		return -1;
@@ -632,6 +636,7 @@ GDScriptTest::TestResult GDScriptTest::execute_test_code(bool p_is_generating) {
 	}
 
 	// Test running.
+	// TODO Plug in here or in call itself for running wasm?
 	const HashMap<StringName, GDScriptFunction *>::ConstIterator test_function_element = script->get_member_functions().find(GDScriptTestRunner::test_function_name);
 	if (!test_function_element) {
 		enable_stdout();
@@ -670,6 +675,7 @@ GDScriptTest::TestResult GDScriptTest::execute_test_code(bool p_is_generating) {
 	GDScriptInstance *instance = static_cast<GDScriptInstance *>(obj->get_script_instance());
 
 	// Call test function.
+	// TODO Or plug in here?
 	Callable::CallError call_err;
 	instance->callp(GDScriptTestRunner::test_function_name, nullptr, 0, call_err);
 

@@ -6,9 +6,76 @@ Import("env_modules")
 
 env_gdscript = env_modules.Clone()
 
-env_gdscript.Prepend(CPPEXTPATH=["#thirdparty/wasmblr/"])
+env_gdscript.Prepend(
+    CPPEXTPATH=[
+        "#thirdparty/wasmblr",
+        "#thirdparty/wamr/core/iwasm/include",
+    ]
+)
 env_gdscript.add_source_files(env.modules_sources, "*.cpp")
 
+# Build wamr, based on modules/svg/SCsub.
+env_wamr = env_modules.Clone()
+wamr_dir = "#thirdparty/wamr/"
+wamr_cpp_ext_path = [
+    "core/iwasm/common",
+    "core/iwasm/include",
+    "core/iwasm/interpreter",
+    "core/shared/mem-alloc",
+    "core/shared/platform/include",
+    "core/shared/utils",
+]
+env_platform = env_wamr["platform"]
+env_wamr.Append(
+    CPPDEFINES=[
+        "BH_FREE=wasm_runtime_free",
+        "BH_MALLOC=wasm_runtime_malloc",
+        "WASM_ENABLE_FAST_INTERP",
+        "WASM_ENABLE_INTERP",
+    ]
+)
+wamr_sources = []
+if env_platform == "linuxbsd":
+    wamr_cpp_ext_path += ["core/shared/platform/linux"]
+    wamr_sources += [
+        "core/shared/platform/common/posix/posix_blocking_op.c",
+        "core/shared/platform/common/posix/posix_malloc.c",
+        "core/shared/platform/common/posix/posix_memmap.c",
+        "core/shared/platform/common/posix/posix_thread.c",
+        "core/shared/platform/common/posix/posix_time.c",
+        "core/shared/platform/linux/platform_init.c",
+    ]
+env_wamr.Prepend(CPPEXTPATH=[wamr_dir + wamr_path for wamr_path in wamr_cpp_ext_path])
+wamr_sources += [
+    "core/shared/mem-alloc/ems/ems_alloc.c",
+    "core/shared/mem-alloc/ems/ems_kfc.c",
+    "core/shared/mem-alloc/mem_alloc.c",
+    "core/shared/platform/common/memory/mremap.c",
+    "core/shared/utils/bh_common.c",
+    "core/shared/utils/bh_log.c",
+    "core/shared/utils/bh_leb128.c",
+    "core/shared/utils/bh_vector.c",
+    "core/shared/utils/runtime_timer.c",
+    "core/iwasm/common/arch/invokeNative_general.c",
+    "core/iwasm/common/wasm_c_api.c",
+    "core/iwasm/common/wasm_exec_env.c",
+    "core/iwasm/common/wasm_loader_common.c",
+    "core/iwasm/common/wasm_memory.c",
+    "core/iwasm/common/wasm_native.c",
+    "core/iwasm/common/wasm_runtime_common.c",
+    # "core/iwasm/interpreter/wasm_interp_classic.c",
+    "core/iwasm/interpreter/wasm_interp_fast.c",
+    "core/iwasm/interpreter/wasm_loader.c",
+    "core/iwasm/interpreter/wasm_mini_loader.c",
+    "core/iwasm/interpreter/wasm_runtime.c",
+]
+wamr_sources = [wamr_dir + wamr_source for wamr_source in wamr_sources]
+wamr_obj = []
+env_wamr.add_source_files(wamr_obj, wamr_sources)
+env.modules_sources += wamr_obj
+# env.Depends(wamr_obj)
+
+# Back to gdscript.
 if env.editor_build:
     env_gdscript.add_source_files(env.modules_sources, "./editor/*.cpp")
 

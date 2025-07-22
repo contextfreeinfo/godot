@@ -617,16 +617,21 @@ Error GDScriptWasmCompiler::compile(const GDScriptParser *p_parser, GDScript *p_
 	compile_imports(self, p_script, root);
 	compile_class(self, p_script, root, p_keep_state);
 	if (!self.dump_wasm) {
+		// Haven't actually generated most code yet.
 		return OK;
 	}
 	// GDScriptParser::TreePrinter printer;
 	// printer.print_tree(*p_parser);
+	// Emit and store wasm on script.
+	std::vector<uint8_t> wasm = self.cg.emit();
+	p_script->wasm.resize(wasm.size());
+	memcpy(p_script->wasm.ptrw(), wasm.data(), wasm.size());
+	// And write to file for now for easier debug.
 	String tmp_dir = "/tmp/tom-godot";
 	String tmp_file = tmp_dir.path_join(p_script->get_path().get_file());
 	tmp_file.append_ascii(".wasm");
 	DirAccess::make_dir_recursive_absolute(tmp_dir);
 	Ref<FileAccess> file = FileAccess::open(tmp_file, FileAccess::WRITE);
-	std::vector<uint8_t> wasm = self.cg.emit();
 	file->store_buffer(wasm.data(), wasm.size());
 	return err;
 }

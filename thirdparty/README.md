@@ -1078,6 +1078,13 @@ Patches:
 - `0003-VMA-add-vmaCalculateLazilyAllocatedBytes.patch` (GH-99257)
 
 
+## wamr (wasm-micro-runtime)
+
+Upstream: https://github.com/bytecodealliance/wasm-micro-runtime
+Version: 2.4.0 (47c7c85ac21f240a878026af603e032065d183fb, 2025)
+License: Apache-2.0 WITH LLVM-exception
+
+
 ## wasmblr
 
 - Upstream: https://github.com/contextfreeinfo/wasmblr

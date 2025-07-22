@@ -2274,7 +2274,7 @@ GDScriptFunction *GDScriptCompiler::_parse_function(Error &r_error, GDScript *p_
 		if (p_for_ready) {
 			func_name = "@implicit_ready";
 		} else {
-			func_name = "@implicit_new";
+			func_name = "@implicit_new"; //
 		}
 	}
 
@@ -2967,7 +2967,7 @@ Error GDScriptCompiler::_compile_class(GDScript *p_script, const GDScriptParser:
 	}
 
 	{
-		// Create `@implicit_new()` special function in any case.
+		// Create `@implicit_new()` special function in any case. //
 		Error err = OK;
 		_parse_function(err, p_script, p_class, nullptr);
 		if (err) {

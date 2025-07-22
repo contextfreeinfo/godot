@@ -85,6 +85,7 @@ class GDScript : public Script {
 	friend class GDScriptFunction;
 	friend class GDScriptAnalyzer;
 	friend class GDScriptCompiler;
+	friend class GDScriptWasmCompiler;
 	friend class GDScriptDocGen;
 	friend class GDScriptLambdaCallable;
 	friend class GDScriptLambdaSelfCallable;
@@ -109,6 +110,8 @@ class GDScript : public Script {
 	HashMap<StringName, Ref<GDScript>> subclasses;
 	HashMap<StringName, MethodInfo> _signals;
 	Dictionary rpc_config;
+
+	PackedByteArray wasm;
 
 public:
 	struct LambdaInfo {

@@ -173,7 +173,7 @@ GDScriptInstance *GDScript::_create_instance(const Variant **p_args, int p_argco
 
 	_super_implicit_constructor(this, instance, r_error);
 	if (r_error.error != Callable::CallError::CALL_OK) {
-		String error_text = Variant::get_call_error_text(instance->owner, "@implicit_new", nullptr, 0, r_error);
+		String error_text = Variant::get_call_error_text(instance->owner, "@implicit_new", nullptr, 0, r_error); //
 		instance->script = Ref<GDScript>();
 		instance->owner->set_script_instance(nullptr);
 		{
