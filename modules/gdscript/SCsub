@@ -25,15 +25,19 @@ wamr_cpp_ext_path = [
     "core/shared/platform/include",
     "core/shared/utils",
 ]
+env_arch = env_wamr["arch"]
 env_platform = env_wamr["platform"]
-env_wamr.Append(
-    CPPDEFINES=[
-        "BH_FREE=wasm_runtime_free",
-        "BH_MALLOC=wasm_runtime_malloc",
+wamr_fast = True
+wamr_defines = [
+    "BH_FREE=wasm_runtime_free",
+    "BH_MALLOC=wasm_runtime_malloc",
+    "WASM_ENABLE_INTERP",
+]
+if wamr_fast:
+    wamr_defines += [
         "WASM_ENABLE_FAST_INTERP",
-        "WASM_ENABLE_INTERP",
     ]
-)
+env_wamr.Append(CPPDEFINES=wamr_defines)
 wamr_sources = []
 if env_platform == "linuxbsd":
     wamr_cpp_ext_path += ["core/shared/platform/linux"]
@@ -45,6 +49,10 @@ if env_platform == "linuxbsd":
         "core/shared/platform/common/posix/posix_time.c",
         "core/shared/platform/linux/platform_init.c",
     ]
+if env_arch == "x86_64":
+    wamr_sources += [
+        "core/iwasm/common/arch/invokeNative_em64_simd.s",
+    ]
 env_wamr.Prepend(CPPEXTPATH=[wamr_dir + wamr_path for wamr_path in wamr_cpp_ext_path])
 wamr_sources += [
     "core/shared/mem-alloc/ems/ems_alloc.c",
@@ -52,23 +60,30 @@ wamr_sources += [
     "core/shared/mem-alloc/mem_alloc.c",
     "core/shared/platform/common/memory/mremap.c",
     "core/shared/utils/bh_common.c",
+    "core/shared/utils/bh_list.c",
     "core/shared/utils/bh_log.c",
     "core/shared/utils/bh_leb128.c",
     "core/shared/utils/bh_vector.c",
     "core/shared/utils/runtime_timer.c",
-    "core/iwasm/common/arch/invokeNative_general.c",
+    # "core/iwasm/common/arch/invokeNative_general.c",
     "core/iwasm/common/wasm_c_api.c",
     "core/iwasm/common/wasm_exec_env.c",
     "core/iwasm/common/wasm_loader_common.c",
     "core/iwasm/common/wasm_memory.c",
     "core/iwasm/common/wasm_native.c",
     "core/iwasm/common/wasm_runtime_common.c",
-    # "core/iwasm/interpreter/wasm_interp_classic.c",
-    "core/iwasm/interpreter/wasm_interp_fast.c",
     "core/iwasm/interpreter/wasm_loader.c",
     "core/iwasm/interpreter/wasm_mini_loader.c",
     "core/iwasm/interpreter/wasm_runtime.c",
 ]
+if wamr_fast:
+    wamr_sources += [
+        "core/iwasm/interpreter/wasm_interp_fast.c",
+    ]
+else:
+    wamr_sources += [
+        "core/iwasm/interpreter/wasm_interp_classic.c",
+    ]
 wamr_sources = [wamr_dir + wamr_source for wamr_source in wamr_sources]
 wamr_obj = []
 env_wamr.add_source_files(wamr_obj, wamr_sources)

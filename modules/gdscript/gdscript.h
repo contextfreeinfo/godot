@@ -270,6 +270,7 @@ public:
 
 	_FORCE_INLINE_ const HashMap<StringName, GDScriptFunction *> &get_member_functions() const { return member_functions; }
 	_FORCE_INLINE_ const HashMap<GDScriptFunction *, LambdaInfo> &get_lambda_info() const { return lambda_info; }
+	_FORCE_INLINE_ const PackedByteArray &get_wasm() const { return wasm; }
 
 	_FORCE_INLINE_ const GDScriptFunction *get_implicit_initializer() const { return implicit_initializer; }
 	_FORCE_INLINE_ const GDScriptFunction *get_implicit_ready() const { return implicit_ready; }

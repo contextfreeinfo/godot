@@ -187,8 +187,39 @@ static String strip_warnings(const String &p_expected) {
 }
 #endif
 
+namespace {
+extern "C" {
+void print_bool(wasm_exec_env_t exec_env, int32_t b) {
+	print_line(static_cast<bool>(b));
+}
+
+void print_empty(wasm_exec_env_t exec_env) {
+	print_line("");
+}
+
+void print_int(wasm_exec_env_t exec_env, int64_t i) {
+	print_line(i);
+}
+
+static NativeSymbol native_symbols[] = {
+	{ "print/0",
+			reinterpret_cast<void *>(print_empty),
+			"()" },
+	{ "print/bool",
+			reinterpret_cast<void *>(print_bool),
+			"(i)" },
+	{ "print/int",
+			reinterpret_cast<void *>(print_int),
+			"(I)" },
+};
+}
+} //namespace
+
 int GDScriptTestRunner::run_tests() {
 	wasm_runtime_init();
+	if (!wasm_runtime_register_natives("godot", native_symbols, std::size(native_symbols))) {
+		FAIL("An error occurred while registering wasm natives.");
+	}
 
 	if (!make_tests()) {
 		FAIL("An error occurred while making the tests.");
@@ -675,9 +706,54 @@ GDScriptTest::TestResult GDScriptTest::execute_test_code(bool p_is_generating) {
 	GDScriptInstance *instance = static_cast<GDScriptInstance *>(obj->get_script_instance());
 
 	// Call test function.
-	// TODO Or plug in here?
 	Callable::CallError call_err;
-	instance->callp(GDScriptTestRunner::test_function_name, nullptr, 0, call_err);
+	const PackedByteArray &wasm = script->get_wasm();
+	if (!wasm.is_empty()) {
+		// Make wasm module if we have one.
+		// TODO Cache in script somewhere, so probably do this elsewhere.
+		char error_buf[128];
+		wasm_module_t module = wasm_runtime_load(
+				const_cast<uint8_t *>(wasm.ptr()), wasm.size(), error_buf, sizeof(error_buf));
+		if (!module) {
+			// TODO Include error_buf message?
+			FAIL("An error occurred while loading wasm module.");
+		}
+		uint32_t stack_size = 1 << 20;
+		uint32_t heap_size = 1 << 20;
+		wasm_module_inst_t module_inst = wasm_runtime_instantiate(
+				module, stack_size, heap_size, error_buf, sizeof(error_buf));
+		if (!module_inst) {
+			// TODO Include error_buf message?
+			FAIL("An error occurred while instantiating wasm module.");
+		}
+		String test_function_name_string = GDScriptTestRunner::test_function_name;
+		DEV_ASSERT(test_function_element->value->get_argument_count() == 0);
+		DEV_ASSERT(test_function_element->value->get_method_info().return_val.type == Variant::NIL);
+		// Append arg count and null char.
+		test_function_name_string.append_ascii("/0");
+		// Append null char.
+		// TODO Explicit null char needed?
+		test_function_name_string.append_ascii("\0");
+		CharString test_function_name = test_function_name_string.utf8();
+		wasm_function_inst_t fun = wasm_runtime_lookup_function(module_inst, test_function_name.get_data());
+		if (!fun) {
+			FAIL(vformat("An error occurred while looking up wasm function: %s", test_function_name.get_data()));
+		}
+		wasm_exec_env_t exec_env = wasm_runtime_create_exec_env(module_inst, stack_size);
+		if (!exec_env) {
+			FAIL("An error occurred while creating wasm exec env.");
+		}
+		uint32_t args[16];
+		bool call_ok = wasm_runtime_call_wasm(exec_env, fun, std::size(args), args);
+		if (!call_ok) {
+			// TODO How to map error kinds?
+			printf("=== tom: %s\n", wasm_runtime_get_exception(module_inst));
+			call_err.error = Callable::CallError::CALL_ERROR_INVALID_METHOD;
+		}
+	} else {
+		// Run standard gdscript bytecode.
+		instance->callp(GDScriptTestRunner::test_function_name, nullptr, 0, call_err);
+	}
 
 	// Tear down output handlers.
 	remove_print_handler(&_print_handler);
