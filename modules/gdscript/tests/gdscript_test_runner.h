@@ -59,6 +59,7 @@ public:
 		TestStatus status;
 		String output;
 		bool passed;
+		bool done_once = false;
 	};
 
 	enum TokenizerMode {

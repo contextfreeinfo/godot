@@ -478,6 +478,9 @@ void GDScriptTest::disable_stdout() {
 
 void GDScriptTest::print_handler(void *p_this, const String &p_message, bool p_error, bool p_rich) {
 	TestResult *result = (TestResult *)p_this;
+	if (result->done_once) {
+		return;
+	}
 	result->output += p_message + "\n";
 }
 
@@ -708,7 +711,8 @@ GDScriptTest::TestResult GDScriptTest::execute_test_code(bool p_is_generating) {
 	// Call test function.
 	Callable::CallError call_err;
 	const PackedByteArray &wasm = script->get_wasm();
-	if (!wasm.is_empty()) {
+	int repeat_count = wasm.is_empty() ? 1 : 1; // '000'000;
+	if (!wasm.is_empty()) { // && false) {
 		// Make wasm module if we have one.
 		// TODO Cache in script somewhere, so probably do this elsewhere.
 		char error_buf[128];
@@ -744,15 +748,22 @@ GDScriptTest::TestResult GDScriptTest::execute_test_code(bool p_is_generating) {
 			FAIL("An error occurred while creating wasm exec env.");
 		}
 		uint32_t args[16];
-		bool call_ok = wasm_runtime_call_wasm(exec_env, fun, std::size(args), args);
-		if (!call_ok) {
-			// TODO How to map error kinds?
-			printf("=== tom: %s\n", wasm_runtime_get_exception(module_inst));
-			call_err.error = Callable::CallError::CALL_ERROR_INVALID_METHOD;
+		// TODO Figure out how to benchmark???
+		for (int i = 0; i < repeat_count; i += 1) {
+			bool call_ok = wasm_runtime_call_wasm(exec_env, fun, std::size(args), args);
+			result.done_once = true;
+			if (!call_ok) {
+				// TODO How to map error kinds?
+				// printf("=== tom: %s\n", wasm_runtime_get_exception(module_inst));
+				call_err.error = Callable::CallError::CALL_ERROR_INVALID_METHOD;
+			}
 		}
 	} else {
-		// Run standard gdscript bytecode.
-		instance->callp(GDScriptTestRunner::test_function_name, nullptr, 0, call_err);
+		for (int i = 0; i < repeat_count; i += 1) {
+			// Run standard gdscript bytecode.
+			instance->callp(GDScriptTestRunner::test_function_name, nullptr, 0, call_err);
+			result.done_once = true;
+		}
 	}
 
 	// Tear down output handlers.
