@@ -730,6 +730,11 @@ GDScriptTest::TestResult GDScriptTest::execute_test_code(bool p_is_generating) {
 			// TODO Include error_buf message?
 			FAIL("An error occurred while instantiating wasm module.");
 		}
+		wasm_exec_env_t exec_env = wasm_runtime_create_exec_env(module_inst, stack_size);
+		if (!exec_env) {
+			FAIL("An error occurred while creating wasm exec env.");
+		}
+		// Get the test function.
 		String test_function_name_string = GDScriptTestRunner::test_function_name;
 		DEV_ASSERT(test_function_element->value->get_argument_count() == 0);
 		DEV_ASSERT(test_function_element->value->get_method_info().return_val.type == Variant::NIL);
@@ -743,10 +748,7 @@ GDScriptTest::TestResult GDScriptTest::execute_test_code(bool p_is_generating) {
 		if (!fun) {
 			FAIL(vformat("An error occurred while looking up wasm function: %s", test_function_name.get_data()));
 		}
-		wasm_exec_env_t exec_env = wasm_runtime_create_exec_env(module_inst, stack_size);
-		if (!exec_env) {
-			FAIL("An error occurred while creating wasm exec env.");
-		}
+		// Call the function.
 		uint32_t args[16];
 		// TODO Figure out how to benchmark???
 		for (int i = 0; i < repeat_count; i += 1) {
