@@ -213,10 +213,17 @@ static NativeSymbol native_symbols[] = {
 			"(I)" },
 };
 }
+
+// const bool allow_wasm = false;
+const bool allow_wasm = true;
+const size_t wasm_found_repeat_count = 1;
+// const size_t wasm_found_repeat_count = 1'000'000;
+
 } //namespace
 
 int GDScriptTestRunner::run_tests() {
 	wasm_runtime_init();
+	print_line("=== allow wasm:", allow_wasm, ", repeat count:", wasm_found_repeat_count);
 	if (!wasm_runtime_register_natives("godot", native_symbols, std::size(native_symbols))) {
 		FAIL("An error occurred while registering wasm natives.");
 	}
@@ -711,8 +718,8 @@ GDScriptTest::TestResult GDScriptTest::execute_test_code(bool p_is_generating) {
 	// Call test function.
 	Callable::CallError call_err;
 	const PackedByteArray &wasm = script->get_wasm();
-	int repeat_count = wasm.is_empty() ? 1 : 1; // '000'000;
-	if (!wasm.is_empty()) { // && false) {
+	int repeat_count = wasm.is_empty() ? 1 : wasm_found_repeat_count;
+	if (!wasm.is_empty() && allow_wasm) {
 		// Make wasm module if we have one.
 		// TODO Cache in script somewhere, so probably do this elsewhere.
 		char error_buf[128];

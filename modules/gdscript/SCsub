@@ -4,6 +4,8 @@ from misc.utility.scons_hints import *
 Import("env")
 Import("env_modules")
 
+# Build gdscript.
+
 env_gdscript = env_modules.Clone()
 
 env_gdscript.Prepend(
@@ -13,6 +15,33 @@ env_gdscript.Prepend(
     ]
 )
 env_gdscript.add_source_files(env.modules_sources, "*.cpp")
+
+if env.editor_build:
+    env_gdscript.add_source_files(env.modules_sources, "./editor/*.cpp")
+
+    SConscript("editor/script_templates/SCsub")
+
+    # Those two modules are required for the language server protocol
+    if env["module_jsonrpc_enabled"] and env["module_websocket_enabled"]:
+        env_gdscript.add_source_files(env.modules_sources, "./language_server/*.cpp")
+    else:
+        # Using a define in the disabled case, to avoid having an extra define
+        # in regular builds where all modules are enabled.
+        env_gdscript.Append(CPPDEFINES=["GDSCRIPT_NO_LSP"])
+        # Also needed in main env to unexpose --lsp-port option.
+        env.Append(CPPDEFINES=["GDSCRIPT_NO_LSP"])
+
+
+if env["tests"]:
+    env_gdscript.Append(CPPDEFINES=["TESTS_ENABLED"])
+    env_gdscript.add_source_files(env.modules_sources, "./tests/*.cpp")
+
+# Build wamr.
+
+# if ARGUMENTS.get("gd", "") == "gd":
+#     env_gdscript.Append(CPPDEFINES=["WASM_DISABLE"])
+# gd_bench_count = ARGUMENTS.get("gdbench", "1")
+# env_gdscript.Append(CPPDEFINES=[("GD_BENCH_COUNT", gd_bench_count)])
 
 # Build wamr, based on modules/svg/SCsub.
 env_wamr = env_modules.Clone()
@@ -91,28 +120,5 @@ else:
         "core/iwasm/interpreter/wasm_interp_classic.c",
     ]
 wamr_sources = [wamr_dir + wamr_source for wamr_source in wamr_sources]
-wamr_obj = []
-env_wamr.add_source_files(wamr_obj, wamr_sources)
-env.modules_sources += wamr_obj
+env_wamr.add_source_files(env.modules_sources, wamr_sources)
 # env.Depends(wamr_obj)
-
-# Back to gdscript.
-if env.editor_build:
-    env_gdscript.add_source_files(env.modules_sources, "./editor/*.cpp")
-
-    SConscript("editor/script_templates/SCsub")
-
-    # Those two modules are required for the language server protocol
-    if env["module_jsonrpc_enabled"] and env["module_websocket_enabled"]:
-        env_gdscript.add_source_files(env.modules_sources, "./language_server/*.cpp")
-    else:
-        # Using a define in the disabled case, to avoid having an extra define
-        # in regular builds where all modules are enabled.
-        env_gdscript.Append(CPPDEFINES=["GDSCRIPT_NO_LSP"])
-        # Also needed in main env to unexpose --lsp-port option.
-        env.Append(CPPDEFINES=["GDSCRIPT_NO_LSP"])
-
-
-if env["tests"]:
-    env_gdscript.Append(CPPDEFINES=["TESTS_ENABLED"])
-    env_gdscript.add_source_files(env.modules_sources, "./tests/*.cpp")
