@@ -45,3 +45,5 @@ func test():
 	print(PackedVector3Array([Vector3.ONE, Vector3.ZERO]))
 	print(PackedColorArray([Color.RED, Color.BLUE, Color.GREEN]))
 	print(PackedVector4Array([Vector4.ONE, Vector4.ZERO]))
+
+# const DUMP_WASM := true

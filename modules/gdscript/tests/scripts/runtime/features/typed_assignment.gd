@@ -7,3 +7,5 @@ func test():
 	print(typeof(x))
 	x = z
 	print(typeof(x))
+
+# const DUMP_WASM := true

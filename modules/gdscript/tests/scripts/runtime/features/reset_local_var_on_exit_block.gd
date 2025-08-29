@@ -24,3 +24,5 @@ func test_exit_while():
 func test():
 	test_exit_if()
 	test_exit_while()
+
+# const DUMP_WASM := true

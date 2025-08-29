@@ -471,6 +471,9 @@ void (*type_init_function_table[])(Variant *) = {
 #define METHOD_CALL_ON_FREED_INSTANCE_ERROR(method_pointer) "Cannot call method '" + (method_pointer)->get_name() + "' on a previously freed instance."
 
 Variant GDScriptFunction::call(GDScriptInstance *p_instance, const Variant **p_args, int p_argcount, Callable::CallError &r_err, CallState *p_state) {
+	// if (_script && !_script->wasm.is_empty()) {
+	// 	print_line("=== call:", name, "for wasm size:", _script->wasm.size());
+	// }
 	OPCODES_TABLE;
 
 	if (!_code_ptr) {

@@ -60,3 +60,5 @@ func test():
 	print("===")
 	prop4 = Inner.new()
 	prop4.subprop.x = 1.0
+
+# const DUMP_WASM := true

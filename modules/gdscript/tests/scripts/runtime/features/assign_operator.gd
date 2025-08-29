@@ -29,3 +29,5 @@ func test():
 	var arr := [1, 2, 3]
 	arr += [4, 5]
 	print(arr)
+
+const DUMP_WASM := true
